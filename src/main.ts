@@ -3,10 +3,43 @@ import { Catalog, Cart, CustomerData, LarekApi } from "./components/Models";
 import { Api } from "./components/base/Api";
 import { API_URL } from "./utils/constants";
 import { apiProducts } from "./utils/data";
+import type { CatalogUpdateEvent, CatalogSelectedChangeEvent, CartAddEvent, CartRemoveEvent, CustomerUpdateEvent } from "./types";
 
 export const catalog = new Catalog();
 export const cart = new Cart();
 export const customerData = new CustomerData();
+
+// ==========================================
+// Подписка на события моделей
+// ==========================================
+
+catalog.on<CatalogUpdateEvent>('catalog:update', (data) => {
+  console.log("[Catalog] Обновление каталога — товаров:", data.products?.length);
+});
+
+catalog.on<CatalogSelectedChangeEvent>('catalog:selected-change', (data) => {
+  console.log("[Catalog] Выбранный продукт:", data.product?.title ?? "снят");
+});
+
+cart.on<CartAddEvent>('cart:add', (data) => {
+  console.log("[Cart] Добавлен товар:", data.product?.title);
+});
+
+cart.on<CartRemoveEvent>('cart:remove', (data) => {
+  console.log("[Cart] Удалён товар:", data.product?.title);
+});
+
+cart.on('cart:clear', () => {
+  console.log("[Cart] Корзина очищена");
+});
+
+customerData.on<CustomerUpdateEvent>('customer:update', (data) => {
+  console.log("[CustomerData] Данные обновлены, валидность:", data.data ? customerData.validate().isValid : false);
+});
+
+customerData.on('customer:clear', () => {
+  console.log("[CustomerData] Данные очищены");
+});
 
 // ==========================================
 // Тестирование модели Catalog

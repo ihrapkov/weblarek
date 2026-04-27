@@ -47,3 +47,34 @@ export interface OrderResult {
   id: string;
   total: number;
 }
+
+// События Catalog
+export interface CatalogUpdateEvent {
+  products: Product[];
+}
+
+export interface CatalogSelectedChangeEvent {
+  product: Product | null;
+}
+
+// События Cart
+export interface CartAddEvent {
+  product: Product;
+}
+
+export interface CartRemoveEvent {
+  product: Product;
+}
+
+export interface CartClearEvent {
+  items: Product[];
+}
+
+// События CustomerData
+export interface CustomerUpdateEvent {
+  data: Customer;
+}
+
+export interface CustomerClearEvent {
+  data: Customer;
+}

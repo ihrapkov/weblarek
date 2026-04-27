@@ -1,6 +1,7 @@
-import type { Customer, CustomerValidationResult } from "../../types";
+import type { Customer, CustomerValidationResult, CustomerUpdateEvent, CustomerClearEvent } from "../../types";
+import { EventEmitter } from "../base/Events";
 
-export class CustomerData {
+export class CustomerData extends EventEmitter {
   private data: Customer = {
     payment: "",
     address: "",
@@ -15,6 +16,7 @@ export class CustomerData {
    */
   public update(fields: Partial<Customer>): void {
     this.data = { ...this.data, ...fields };
+    this.emit<CustomerUpdateEvent>('customer:update', { data: this.data });
   }
 
   /** Получение всех данных покупателя */
@@ -24,7 +26,9 @@ export class CustomerData {
 
   /** Очистка данных покупателя */
   public clear(): void {
+    const data = { ...this.data };
     this.data = { payment: "", address: "", email: "", phone: "" };
+    this.emit<CustomerClearEvent>('customer:clear', { data });
   }
 
   /**

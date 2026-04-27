@@ -1,6 +1,7 @@
-import type { Product } from '../../types';
+import type { Product, CartAddEvent, CartRemoveEvent, CartClearEvent } from '../../types';
+import { EventEmitter } from '../base/Events';
 
-export class Cart {
+export class Cart extends EventEmitter {
   private items: Product[] = [];
 
   /** Получение массива товаров в корзине */
@@ -11,6 +12,7 @@ export class Cart {
   /** Добавление товара в корзину */
   public addItem(product: Product): void {
     this.items.push(product);
+    this.emit<CartAddEvent>('cart:add', { product });
   }
 
   /** Удаление товара из корзины */
@@ -18,12 +20,15 @@ export class Cart {
     const index = this.items.findIndex((item) => item.id === product.id);
     if (index !== -1) {
       this.items.splice(index, 1);
+      this.emit<CartRemoveEvent>('cart:remove', { product });
     }
   }
 
   /** Очистка корзины */
   public clear(): void {
+    const items = [...this.items];
     this.items = [];
+    this.emit<CartClearEvent>('cart:clear', { items });
   }
 
   /** Получение стоимости всех товаров в корзине */

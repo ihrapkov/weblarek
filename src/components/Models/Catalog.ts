@@ -1,12 +1,14 @@
-import type { Product } from '../../types';
+import type { Product, CatalogUpdateEvent, CatalogSelectedChangeEvent } from '../../types';
+import { EventEmitter } from '../base/Events';
 
-export class Catalog {
+export class Catalog extends EventEmitter {
   private products: Product[] = [];
   private selectedProduct: Product | null = null;
 
   /** Сохранение массива товаров */
   public setProducts(products: Product[]): void {
     this.products = [...products];
+    this.emit<CatalogUpdateEvent>('catalog:update', { products });
   }
 
   /** Получение массива товаров */
@@ -22,6 +24,7 @@ export class Catalog {
   /** Сохранение товара для подробного отображения */
   public setSelectedProduct(product: Product | null): void {
     this.selectedProduct = product;
+    this.emit<CatalogSelectedChangeEvent>('catalog:selected-change', { product });
   }
 
   /** Получение товара для подробного отображения */
