@@ -1,7 +1,7 @@
 import "./scss/styles.scss";
 import { Catalog, Cart, CustomerData, LarekApi } from "./components/Models";
 import { Api } from "./components/base/Api";
-import { API_URL, CDN_URL } from "./utils/constants";
+import { API_URL } from "./utils/constants";
 import {
   GalleryView,
   CatalogCardView,
@@ -14,6 +14,7 @@ import {
   ModalView,
   HeaderView,
 } from "./components/Views";
+import type { Product, Customer } from "./types";
 
 // ==========================================
 // 1. Модели
@@ -71,12 +72,22 @@ const successView = new OrderSuccessView(
 // ==========================================
 // 3. Привязка событий через СЕТТЕРЫ
 // ==========================================
-header.onBasketClick = () => modal.open(basketView);
+header.onBasketClick = () => {
+  updateBasketUI();
+  modal.open(basketView);
+};
 
-basketView.onCheckout = () => modal.open(orderForm);
+basketView.onCheckout = () => {
+  customerData.clear();
+  modal.open(orderForm);
+  orderForm.render({ valid: customerData.validate().isValid });
+};
+
 successView.onReset = () => {
   modal.close();
   cart.clear();
+  customerData.clear();
+  header.counter = 0;
 };
 
 // Формы заказа
@@ -84,25 +95,32 @@ orderForm.onPaymentChange = (payment) => {
   customerData.update({ payment });
   orderForm.render({ valid: customerData.validate().isValid });
 };
+
 orderForm.onAddressInput = (address) => {
   customerData.update({ address });
   orderForm.render({ valid: customerData.validate().isValid });
 };
+
 orderForm.onSubmit = () => {
   const validation = customerData.validate();
-  if (validation.isValid) modal.open(contactsForm);
-  else
+  if (validation.isValid) {
+    modal.open(contactsForm);
+    contactsForm.render({ valid: customerData.validate().isValid });
+  } else {
     orderForm.render({ errors: Object.values(validation.errors).join("; ") });
+  }
 };
 
 contactsForm.onEmailInput = (email) => {
   customerData.update({ email });
   contactsForm.render({ valid: customerData.validate().isValid });
 };
+
 contactsForm.onPhoneInput = (phone) => {
   customerData.update({ phone });
   contactsForm.render({ valid: customerData.validate().isValid });
 };
+
 contactsForm.onSubmit = () => {
   const validation = customerData.validate();
   if (validation.isValid) {
@@ -141,7 +159,6 @@ catalog.on("catalog:update", () => {
     const cardEl = template.content.firstElementChild?.cloneNode(
       true,
     ) as HTMLElement;
-
     const cardView = new CatalogCardView(cardEl);
     cardView.onSelect = () => catalog.setSelectedProduct(product);
 
@@ -151,22 +168,25 @@ catalog.on("catalog:update", () => {
   galleryView.render({ items: cardElements });
 });
 
-catalog.on("catalog:selected-change", ({ product }) => {
-  if (product) {
-    previewCard.render(product);
-    previewCard.inCart = cart.hasItem(product.id);
-    if (cart.hasItem(product.id)) {
-      previewCard.onRemoveFromCart = () => {
-        cart.removeItem(product);
-      };
-    } else {
-      previewCard.onAddToCart = () => {
-        cart.addItem(product);
-      };
+catalog.on(
+  "catalog:selected-change",
+  ({ product }: { product: Product | null }) => {
+    if (product) {
+      previewCard.render(product);
+      previewCard.inCart = cart.hasItem(product.id);
+      if (cart.hasItem(product.id)) {
+        previewCard.onRemoveFromCart = () => {
+          cart.removeItem(product);
+        };
+      } else {
+        previewCard.onAddToCart = () => {
+          cart.addItem(product);
+        };
+      }
+      modal.open(previewCard);
     }
-    modal.open(previewCard);
-  }
-});
+  },
+);
 
 const updateBasketUI = () => {
   const basketItems = cart.getItems().map((item, index) => {
@@ -176,7 +196,6 @@ const updateBasketUI = () => {
     const cardEl = template.content.firstElementChild?.cloneNode(
       true,
     ) as HTMLElement;
-
     const basketCard = new BasketCardView(cardEl);
     basketCard.onDelete = () => {
       const product = cart.getItems().find((p) => p.id === item.id);
@@ -185,7 +204,11 @@ const updateBasketUI = () => {
       }
     };
 
-    basketCard.render({ ...item, index: index + 1 });
+    basketCard.render({
+      ...item,
+      index: index + 1,
+      price: item.price ?? undefined,
+    });
     return cardEl;
   });
 
@@ -196,31 +219,31 @@ const updateBasketUI = () => {
   });
 };
 
-cart.on("cart:add", (data) => {
+cart.on("cart:add", ({ product }: { product: Product }) => {
   header.counter = cart.getItemCount();
   updateBasketUI();
   const selectedProduct = catalog.getSelectedProduct();
-  if (selectedProduct && selectedProduct.id === data.product.id) {
+  if (selectedProduct && selectedProduct.id === product.id) {
     previewCard.inCart = true;
     previewCard.onRemoveFromCart = () => {
-      cart.removeItem(data.product);
+      cart.removeItem(product);
     };
   }
 });
 
-cart.on("cart:remove", (data) => {
+cart.on("cart:remove", ({ product }: { product: Product }) => {
   header.counter = cart.getItemCount();
   updateBasketUI();
   const selectedProduct = catalog.getSelectedProduct();
-  if (selectedProduct && selectedProduct.id === data.product.id) {
+  if (selectedProduct && selectedProduct.id === product.id) {
     previewCard.inCart = false;
     previewCard.onAddToCart = () => {
-      cart.addItem(data.product);
+      cart.addItem(product);
     };
   }
 });
 
-cart.on("cart:clear", (data) => {
+cart.on("cart:clear", () => {
   header.counter = 0;
   updateBasketUI();
   const selectedProduct = catalog.getSelectedProduct();
@@ -232,7 +255,7 @@ cart.on("cart:clear", (data) => {
   }
 });
 
-customerData.on("customer:update", ({ data }) => {
+customerData.on("customer:update", ({ data }: { data: Partial<Customer> }) => {
   orderForm.render(data);
   contactsForm.render(data);
 });
@@ -241,13 +264,12 @@ customerData.on("customer:update", ({ data }) => {
 // 5. Начальная загрузка
 // ==========================================
 header.counter = cart.getItemCount();
-
 const larekApi = new LarekApi(new Api(API_URL));
+
 larekApi
   .getProducts()
   .then((products) => {
     catalog.setProducts(products);
-    // Инициализация состояния кнопки для корзины
     const selectedProduct = catalog.getSelectedProduct();
     if (selectedProduct) {
       previewCard.inCart = cart.hasItem(selectedProduct.id);
