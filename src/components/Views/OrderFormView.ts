@@ -1,71 +1,92 @@
-import { FormView, type FormViewData } from "./FormView";
+import { Component } from "../base/Component";
 import { ensureElement } from "../../utils/utils";
+import type { Customer } from "../../types";
 
-export interface OrderFormViewData extends FormViewData {
-  payment: "card" | "cash" | "";
-  address: string;
+export interface OrderFormViewData extends Partial<Customer> {
+  errors?: string;
+  valid?: boolean;
 }
 
-export interface OrderFormHandlers {
-  onPaymentChange?: (payment: "card" | "cash") => void;
-  onAddressInput?: (value: string) => void;
-  onSubmit?: () => void;
-}
+export class OrderFormView extends Component<OrderFormViewData> {
+  protected _paymentCard: HTMLButtonElement;
+  protected _paymentCash: HTMLButtonElement;
+  protected _address: HTMLInputElement;
+  protected _errors: HTMLElement;
+  protected _submitBtn: HTMLButtonElement;
 
-export class OrderFormView extends FormView<OrderFormViewData> {
-  private readonly cardButton: HTMLButtonElement;
-  private readonly cashButton: HTMLButtonElement;
-  private readonly addressInput: HTMLInputElement;
-  private readonly handlers: OrderFormHandlers;
-
-  constructor(container: HTMLElement, handlers: OrderFormHandlers = {}) {
-    super(container, handlers.onSubmit);
-
-    this.handlers = handlers;
-    this.cardButton = ensureElement<HTMLButtonElement>(
+  constructor(container: HTMLElement) {
+    super(container);
+    // Точные селекторы под ваш <template id="order">
+    this._paymentCard = ensureElement<HTMLButtonElement>(
       'button[name="card"]',
       this.container,
     );
-    this.cashButton = ensureElement<HTMLButtonElement>(
+    this._paymentCash = ensureElement<HTMLButtonElement>(
       'button[name="cash"]',
       this.container,
     );
-    this.addressInput = ensureElement<HTMLInputElement>(
+    this._address = ensureElement<HTMLInputElement>(
       'input[name="address"]',
       this.container,
     );
+    this._errors = ensureElement<HTMLElement>(".form__errors", this.container);
+    this._submitBtn = ensureElement<HTMLButtonElement>(
+      'button[type="submit"]',
+      this.container,
+    );
+  }
 
-    this.cardButton.addEventListener("click", (event: MouseEvent) => {
-      event.preventDefault();
-      this.handlers.onPaymentChange?.("card");
+  set payment(value: "card" | "cash" | "") {
+    if (value === "card") {
+      this._paymentCard.classList.add("button_alt-active");
+      this._paymentCash.classList.remove("button_alt-active");
+    } else if (value === "cash") {
+      this._paymentCash.classList.add("button_alt-active");
+      this._paymentCard.classList.remove("button_alt-active");
+    } else {
+      this._paymentCard.classList.remove("button_alt-active");
+      this._paymentCash.classList.remove("button_alt-active");
+    }
+  }
+
+  set address(value: string) {
+    this._address.value = value;
+  }
+
+  set errors(value: string) {
+    this._errors.textContent = value || "";
+  }
+
+  set valid(value: boolean) {
+    this._submitBtn.disabled = !value;
+  }
+
+  set onPaymentChange(callback: (value: "card" | "cash") => void) {
+    this._paymentCard.addEventListener("click", () => {
+      this.payment = "card";
+      callback("card");
     });
-
-    this.cashButton.addEventListener("click", (event: MouseEvent) => {
-      event.preventDefault();
-      this.handlers.onPaymentChange?.("cash");
-    });
-
-    this.addressInput.addEventListener("input", () => {
-      this.handlers.onAddressInput?.(this.addressInput.value);
+    this._paymentCash.addEventListener("click", () => {
+      this.payment = "cash";
+      callback("cash");
     });
   }
 
-  public override render(data?: Partial<OrderFormViewData>): HTMLElement {
-    super.render(data);
+  set onAddressInput(callback: (value: string) => void) {
+    this._address.addEventListener("input", (e) =>
+      callback((e.target as HTMLInputElement).value),
+    );
+  }
 
-    if (typeof data?.address === "string") {
-      this.addressInput.value = data.address;
-    }
+  set onSubmit(callback: () => void) {
+    this._submitBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      callback();
+    });
+  }
 
-    if ("payment" in (data ?? {})) {
-      this.setActivePayment(data?.payment ?? "");
-    }
-
+  override render(data?: Partial<OrderFormViewData>): HTMLElement {
+    super.render(data); // Автоматически вызовет set payment, address, errors, valid
     return this.container;
-  }
-
-  private setActivePayment(payment: "card" | "cash" | ""): void {
-    this.cardButton.classList.toggle("button_alt-active", payment === "card");
-    this.cashButton.classList.toggle("button_alt-active", payment === "cash");
   }
 }

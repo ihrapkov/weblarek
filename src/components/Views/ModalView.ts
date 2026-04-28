@@ -1,86 +1,44 @@
 import { Component } from "../base/Component";
 import { ensureElement } from "../../utils/utils";
 
-export interface ModalViewData {
-  content: HTMLElement;
-  isOpen: boolean;
-}
+export class ModalView extends Component<any> {
+  protected _content: HTMLElement;
+  protected _closeBtn: HTMLButtonElement;
 
-export type ModalCloseReason = "button" | "overlay" | "escape";
-export type ModalCloseHandler = (reason: ModalCloseReason) => void;
-
-export class ModalView extends Component<ModalViewData> {
-  private readonly modalElement: HTMLElement;
-  private readonly closeButton: HTMLButtonElement;
-  private readonly contentElement: HTMLElement;
-
-  constructor(
-    container: HTMLElement,
-    private readonly onCloseRequest?: ModalCloseHandler,
-  ) {
+  constructor(container: HTMLElement) {
     super(container);
-
-    this.modalElement = this.container.matches(".modal")
-      ? this.container
-      : ensureElement<HTMLElement>(".modal", this.container);
-    this.closeButton = ensureElement<HTMLButtonElement>(
-      ".modal__close",
-      this.modalElement,
-    );
-    this.contentElement = ensureElement<HTMLElement>(
+    // Контент модальных окон вставляется именно сюда
+    this._content = ensureElement<HTMLElement>(
       ".modal__content",
-      this.modalElement,
+      this.container,
+    );
+    this._closeBtn = ensureElement<HTMLButtonElement>(
+      ".modal__close",
+      this.container,
     );
 
-    this.closeButton.addEventListener("click", (event: MouseEvent) => {
-      event.preventDefault();
-      this.onCloseRequest?.("button");
-    });
-
-    this.modalElement.addEventListener("click", (event: MouseEvent) => {
-      if (event.target === this.modalElement) {
-        this.onCloseRequest?.("overlay");
-      }
-    });
-
-    document.addEventListener("keydown", (event: KeyboardEvent) => {
-      if (
-        event.key === "Escape" &&
-        this.modalElement.classList.contains("modal_active")
-      ) {
-        this.onCloseRequest?.("escape");
-      }
+    this._closeBtn.addEventListener("click", () => this.close());
+    this.container.addEventListener("click", (e) => {
+      if (e.target === this.container) this.close();
     });
   }
 
-  public open(content?: HTMLElement): void {
-    if (content) {
-      this.setContent(content);
-    }
-    this.setOpenState(true);
+  set content(value: HTMLElement) {
+    this._content.replaceChildren(value);
   }
 
-  public close(): void {
-    this.setOpenState(false);
+  open(component: Component<any>) {
+    this.content = component.render();
+    this.container.classList.add("modal_active");
+    document.body.classList.add("modal_open");
   }
 
-  public override render(data?: Partial<ModalViewData>): HTMLElement {
-    if (data?.content instanceof HTMLElement) {
-      this.setContent(data.content);
-    }
+  close() {
+    this.container.classList.remove("modal_active");
+    document.body.classList.remove("modal_open");
+  }
 
-    if (typeof data?.isOpen === "boolean") {
-      this.setOpenState(data.isOpen);
-    }
-
+  override render(): HTMLElement {
     return this.container;
-  }
-
-  private setContent(content: HTMLElement): void {
-    this.contentElement.replaceChildren(content);
-  }
-
-  private setOpenState(isOpen: boolean): void {
-    this.modalElement.classList.toggle("modal_active", isOpen);
   }
 }

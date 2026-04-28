@@ -6,35 +6,30 @@ export interface OrderSuccessViewData {
 }
 
 export class OrderSuccessView extends Component<OrderSuccessViewData> {
-  private readonly descriptionElement: HTMLElement;
-  private readonly closeButton: HTMLButtonElement;
+  protected _total: HTMLElement;
+  protected _closeBtn: HTMLButtonElement;
 
-  constructor(
-    container: HTMLElement,
-    private readonly onClose?: () => void,
-  ) {
+  constructor(container: HTMLElement) {
     super(container);
-
-    this.descriptionElement = ensureElement<HTMLElement>(
+    this._total = ensureElement<HTMLElement>(
       ".order-success__description",
       this.container,
     );
-    this.closeButton = ensureElement<HTMLButtonElement>(
+    this._closeBtn = ensureElement<HTMLButtonElement>(
       ".order-success__close",
       this.container,
     );
-
-    this.closeButton.addEventListener("click", (event: MouseEvent) => {
-      event.preventDefault();
-      this.onClose?.();
-    });
   }
 
-  public override render(data?: Partial<OrderSuccessViewData>): HTMLElement {
-    if (typeof data?.total === "number") {
-      this.descriptionElement.textContent = `Списано ${data.total} синапсов`;
-    }
+  set total(value: number) {
+    this._total.textContent = `Списано ${value} синапсов`;
+  }
+  set onReset(callback: () => void) {
+    this._closeBtn.addEventListener("click", callback);
+  }
 
+  override render(data?: Partial<OrderSuccessViewData>): HTMLElement {
+    super.render(data);
     return this.container;
   }
 }

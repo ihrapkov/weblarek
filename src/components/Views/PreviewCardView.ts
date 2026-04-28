@@ -1,56 +1,85 @@
-import { CardView, type CardViewData } from "./CardView";
+import { Component } from "../base/Component";
 import { ensureElement } from "../../utils/utils";
+import type { Product } from "../../types";
+import { CDN_URL } from "../../utils/constants";
 
-export interface PreviewCardViewData extends CardViewData {
-  description: string;
-  buttonText: string;
-  buttonDisabled: boolean;
-}
+export interface PreviewCardViewData extends Product {}
 
-export class PreviewCardView extends CardView<PreviewCardViewData> {
-  private readonly descriptionElement: HTMLElement;
-  private readonly actionButton: HTMLButtonElement;
+export class PreviewCardView extends Component<PreviewCardViewData> {
+  protected _title: HTMLElement;
+  protected _category: HTMLElement;
+  protected _image: HTMLImageElement;
+  protected _text: HTMLElement;
+  protected _price: HTMLElement;
+  protected _button: HTMLButtonElement;
 
-  constructor(
-    container: HTMLElement,
-    private readonly onActionClick?: (id: string) => void,
-  ) {
+  constructor(container: HTMLElement) {
     super(container);
 
-    this.descriptionElement = ensureElement<HTMLElement>(
-      ".card__text",
+    this._title = ensureElement<HTMLElement>(".card__title", this.container);
+    this._category = ensureElement<HTMLElement>(
+      ".card__category",
       this.container,
     );
-    this.actionButton = ensureElement<HTMLButtonElement>(
+    this._image = ensureElement<HTMLImageElement>(
+      ".card__image",
+      this.container,
+    );
+    this._text = ensureElement<HTMLElement>(".card__text", this.container);
+    this._price = ensureElement<HTMLElement>(".card__price", this.container);
+    this._button = ensureElement<HTMLButtonElement>(
       ".card__button",
       this.container,
     );
-
-    this.actionButton.addEventListener("click", (event: MouseEvent) => {
-      event.preventDefault();
-      const id = this.container.dataset.id;
-      if (!id) {
-        return;
-      }
-      this.onActionClick?.(id);
-    });
   }
 
-  public override render(data?: Partial<PreviewCardViewData>): HTMLElement {
-    super.render(data);
+  set title(value: string) {
+    this._title.textContent = value;
+  }
 
-    if (typeof data?.description === "string") {
-      this.descriptionElement.textContent = data.description;
-    }
+  set category(value: string) {
+    this._category.textContent = value;
+    // Динамическое изменение класса категории (стандартная логика проекта)
+    const categoryClasses: Record<string, string> = {
+      "софт-скил": "soft",
+      другое: "other",
+      дополнительное: "additional",
+      кнопка: "button",
+      "хард-скил": "hard",
+    };
+    this._category.className = `card__category card__category_${categoryClasses[value] || "other"}`;
+  }
 
-    if (typeof data?.buttonText === "string") {
-      this.actionButton.textContent = data.buttonText;
-    }
+  set image(value: string) {
+    const resolvedSrc = value.startsWith("http")
+      ? value
+      : `${CDN_URL}/${value}`;
+    this.setImage(this._image, resolvedSrc, value);
+  }
 
-    if (typeof data?.buttonDisabled === "boolean") {
-      this.actionButton.disabled = data.buttonDisabled;
-    }
+  set description(value: string) {
+    this._text.textContent = value;
+  }
 
+  set price(value: number | null) {
+    this._price.textContent = value ? `${value} синапсов` : "Бесценно";
+    this._button.disabled = value === null;
+  }
+
+  set inCart(value: boolean) {
+    this._button.textContent = value ? "Удалить из корзины" : "В корзину";
+  }
+
+  set onAddToCart(callback: () => void) {
+    this._button.onclick = callback;
+  }
+
+  set onRemoveFromCart(callback: () => void) {
+    this._button.onclick = callback;
+  }
+
+  override render(data?: Partial<PreviewCardViewData>): HTMLElement {
+    super.render(data); // Вызывает сеттеры через Object.assign
     return this.container;
   }
 }

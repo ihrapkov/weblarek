@@ -8,52 +8,35 @@ export interface BasketViewData {
 }
 
 export class BasketView extends Component<BasketViewData> {
-  private readonly basketElement: HTMLElement;
-  private readonly listElement: HTMLElement;
-  private readonly priceElement: HTMLElement;
-  private readonly checkoutButton: HTMLButtonElement;
+  protected _list: HTMLElement;
+  protected _total: HTMLElement;
+  protected _checkoutBtn: HTMLButtonElement;
 
-  constructor(
-    container: HTMLElement,
-    private readonly onCheckout?: () => void,
-  ) {
+  constructor(container: HTMLElement) {
     super(container);
-
-    this.basketElement = this.container.matches(".basket")
-      ? this.container
-      : ensureElement<HTMLElement>(".basket", this.container);
-    this.listElement = ensureElement<HTMLElement>(
-      ".basket__list",
-      this.basketElement,
-    );
-    this.priceElement = ensureElement<HTMLElement>(
-      ".basket__price",
-      this.basketElement,
-    );
-    this.checkoutButton = ensureElement<HTMLButtonElement>(
+    this._list = ensureElement<HTMLElement>(".basket__list", this.container);
+    this._total = ensureElement<HTMLElement>(".basket__price", this.container);
+    this._checkoutBtn = ensureElement<HTMLButtonElement>(
       ".basket__button",
-      this.basketElement,
+      this.container,
     );
-
-    this.checkoutButton.addEventListener("click", (event: MouseEvent) => {
-      event.preventDefault();
-      this.onCheckout?.();
-    });
   }
 
-  public override render(data?: Partial<BasketViewData>): HTMLElement {
-    if (Array.isArray(data?.items)) {
-      this.listElement.replaceChildren(...data.items);
-    }
+  set items(value: HTMLElement[]) {
+    this._list.replaceChildren(...value);
+  }
+  set total(value: number) {
+    this._total.textContent = `${value} синапсов`;
+  }
+  set canCheckout(value: boolean) {
+    this._checkoutBtn.disabled = !value;
+  }
+  set onCheckout(callback: () => void) {
+    this._checkoutBtn.addEventListener("click", callback);
+  }
 
-    if (typeof data?.total === "number") {
-      this.priceElement.textContent = `${data.total} синапсов`;
-    }
-
-    if (typeof data?.canCheckout === "boolean") {
-      this.checkoutButton.disabled = !data.canCheckout;
-    }
-
+  override render(data?: Partial<BasketViewData>): HTMLElement {
+    super.render(data);
     return this.container;
   }
 }

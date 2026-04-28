@@ -1,55 +1,67 @@
-import { FormView, type FormViewData } from "./FormView";
+import { Component } from "../base/Component";
 import { ensureElement } from "../../utils/utils";
+import type { Customer } from "../../types";
 
-export interface ContactsFormViewData extends FormViewData {
-  email: string;
-  phone: string;
+export interface ContactsFormViewData extends Partial<Customer> {
+  errors?: string;
+  valid?: boolean;
 }
 
-export interface ContactsFormHandlers {
-  onEmailInput?: (value: string) => void;
-  onPhoneInput?: (value: string) => void;
-  onSubmit?: () => void;
-}
+export class ContactsFormView extends Component<ContactsFormViewData> {
+  protected _email: HTMLInputElement;
+  protected _phone: HTMLInputElement;
+  protected _errors: HTMLElement;
+  protected _submitBtn: HTMLButtonElement;
 
-export class ContactsFormView extends FormView<ContactsFormViewData> {
-  private readonly emailInput: HTMLInputElement;
-  private readonly phoneInput: HTMLInputElement;
-  private readonly handlers: ContactsFormHandlers;
-
-  constructor(container: HTMLElement, handlers: ContactsFormHandlers = {}) {
-    super(container, handlers.onSubmit);
-
-    this.handlers = handlers;
-    this.emailInput = ensureElement<HTMLInputElement>(
+  constructor(container: HTMLElement) {
+    super(container);
+    this._email = ensureElement<HTMLInputElement>(
       'input[name="email"]',
       this.container,
     );
-    this.phoneInput = ensureElement<HTMLInputElement>(
+    this._phone = ensureElement<HTMLInputElement>(
       'input[name="phone"]',
       this.container,
     );
+    this._errors = ensureElement<HTMLElement>(".form__errors", this.container);
+    this._submitBtn = ensureElement<HTMLButtonElement>(
+      'button[type="submit"]',
+      this.container,
+    );
+  }
 
-    this.emailInput.addEventListener("input", () => {
-      this.handlers.onEmailInput?.(this.emailInput.value);
-    });
+  set email(value: string) {
+    this._email.value = value;
+  }
+  set phone(value: string) {
+    this._phone.value = value;
+  }
+  set errors(value: string) {
+    this._errors.textContent = value || "";
+  }
+  set valid(value: boolean) {
+    this._submitBtn.disabled = !value;
+  }
 
-    this.phoneInput.addEventListener("input", () => {
-      this.handlers.onPhoneInput?.(this.phoneInput.value);
+  set onEmailInput(callback: (value: string) => void) {
+    this._email.addEventListener("input", (e) =>
+      callback((e.target as HTMLInputElement).value),
+    );
+  }
+  set onPhoneInput(callback: (value: string) => void) {
+    this._phone.addEventListener("input", (e) =>
+      callback((e.target as HTMLInputElement).value),
+    );
+  }
+  set onSubmit(callback: () => void) {
+    this._submitBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      callback();
     });
   }
 
-  public override render(data?: Partial<ContactsFormViewData>): HTMLElement {
+  override render(data?: Partial<ContactsFormViewData>): HTMLElement {
     super.render(data);
-
-    if (typeof data?.email === "string") {
-      this.emailInput.value = data.email;
-    }
-
-    if (typeof data?.phone === "string") {
-      this.phoneInput.value = data.phone;
-    }
-
     return this.container;
   }
 }

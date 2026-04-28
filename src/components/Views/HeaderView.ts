@@ -1,40 +1,29 @@
+// src/components/Views/HeaderView.ts
 import { Component } from "../base/Component";
-import { ensureElement } from "../../utils/utils";
 
-export interface HeaderViewData {
-  basketCount: number;
-}
+export class HeaderView extends Component {
+  protected _counter: HTMLElement;
+  protected _basket: HTMLElement;
 
-export class HeaderView extends Component<HeaderViewData> {
-  private readonly headerBasketButton: HTMLButtonElement;
-  private readonly basketCountElement: HTMLElement;
-
-  constructor(
-    container: HTMLElement,
-    private readonly onBasketClick?: () => void,
-  ) {
+  constructor(container: HTMLElement) {
     super(container);
-
-    this.headerBasketButton = ensureElement<HTMLButtonElement>(
-      ".header__basket",
-      this.container,
-    );
-    this.basketCountElement = ensureElement<HTMLElement>(
+    this._counter = container.querySelector(
       ".header__basket-counter",
-      this.container,
-    );
-
-    this.headerBasketButton.addEventListener("click", (event: Event) => {
-      event.preventDefault();
-      this.onBasketClick?.();
-    });
+    ) as HTMLElement;
+    this._basket = container.querySelector(".header__basket") as HTMLElement;
   }
 
-  override render(data?: Partial<HeaderViewData>): HTMLElement {
-    if (typeof data?.basketCount === "number") {
-      this.basketCountElement.textContent = String(data.basketCount);
-    }
+  /**
+   * Сеттер для обновления счётчика товаров в корзине
+   */
+  set counter(value: number) {
+    this._counter.textContent = String(value);
+  }
 
-    return this.container;
+  /**
+   * Сеттер для обработки клика по иконке корзины
+   */
+  set onBasketClick(callback: () => void) {
+    this._basket.addEventListener("click", callback);
   }
 }

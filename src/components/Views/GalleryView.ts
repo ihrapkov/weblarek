@@ -1,32 +1,26 @@
-import { ensureElement } from "../../utils/utils";
 import { Component } from "../base/Component";
 
 export interface GalleryViewData {
-  catalog: HTMLElement[];
+  items: HTMLElement[];
 }
 
 export class GalleryView extends Component<GalleryViewData> {
-  private readonly catalogElement: HTMLElement;
-
   constructor(container: HTMLElement) {
     super(container);
-
-    // Если в конструктор передан сам .gallery, используем его.
-    // Иначе ищем .gallery внутри переданного контейнера.
-    this.catalogElement = this.container.matches(".gallery")
-      ? this.container
-      : ensureElement<HTMLElement>(".gallery", this.container);
   }
 
-  public render(data?: Partial<GalleryViewData>): HTMLElement {
-    if (Array.isArray(data?.catalog)) {
-      this.renderCatalog(data.catalog);
+  /**
+   * Сеттер для полной замены содержимого галереи
+   */
+  set items(items: HTMLElement[]) {
+    // this.container гарантированно существует после вызова super()
+    this.container.replaceChildren(...items);
+  }
+
+  override render(data?: Partial<GalleryViewData>): HTMLElement {
+    if (data?.items) {
+      this.items = data.items;
     }
-
     return this.container;
-  }
-
-  private renderCatalog(items: HTMLElement[]): void {
-    this.catalogElement.replaceChildren(...items);
   }
 }
