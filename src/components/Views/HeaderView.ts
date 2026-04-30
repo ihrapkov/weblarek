@@ -1,4 +1,3 @@
-// src/components/Views/HeaderView.ts
 import { Component } from "../base/Component";
 
 export class HeaderView extends Component {
