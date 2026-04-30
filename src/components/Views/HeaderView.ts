@@ -1,6 +1,6 @@
 import { Component } from "../base/Component";
 
-export class HeaderView extends Component {
+export class HeaderView extends Component<any> {
   protected _counter: HTMLElement;
   protected _basket: HTMLElement;
 

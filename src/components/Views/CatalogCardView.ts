@@ -1,7 +1,7 @@
 import { Component } from "../base/Component";
 import { ensureElement } from "../../utils/utils";
 import type { Product } from "../../types";
-import { CDN_URL } from "../../utils/constants";
+import { CDN_URL, categoryMap } from "../../utils/constants";
 
 export interface CatalogCardViewData extends Product {}
 
@@ -35,6 +35,9 @@ export class CatalogCardView extends Component<CatalogCardViewData> {
   }
   set category(value: string) {
     this._category.textContent = value;
+    const categoryModifier =
+      categoryMap[value as keyof typeof categoryMap] || "card__category_other";
+    this._category.className = `card__category ${categoryModifier}`;
   }
   set image(value: string) {
     const resolvedSrc = value.startsWith("http")
