@@ -408,13 +408,19 @@ View-слой **не генерирует события**. Использует
 
 | Класс              | Назначение               | Ключевые сеттеры / колбэки                                                                        |
 | :----------------- | :----------------------- | :------------------------------------------------------------------------------------------------ |
+| **Базовые классы** |                          |                                                                                                   |
+| `BaseCardView`     | Базовый класс карточек   | `title`, `price`, `category`, `image`                                                             |
+| `BaseFormView`     | Базовый класс форм       | `errors`, `valid`, `onSubmit`, методы `getFormValues()`, `reset()`                                |
+| **Карточки**       |                          |                                                                                                   |
 | `GalleryView`      | Сетка товаров            | `items: HTMLElement[]`                                                                            |
 | `CatalogCardView`  | Карточка в каталоге      | `id`, `title`, `category`, `image`, `price`, `onSelect`                                           |
 | `PreviewCardView`  | Детальный просмотр       | `title`, `category`, `image`, `description`, `price`, `inCart`, `onAddToCart`, `onRemoveFromCart` |
-| `BasketView`       | Контейнер корзины        | `items`, `total`, `canCheckout`, `onCheckout`                                                     |
 | `BasketCardView`   | Позиция в корзине        | `index`, `title`, `price`, `id`, `onDelete`                                                       |
+| **Формы**          |                          |                                                                                                   |
 | `OrderFormView`    | Шаг 1: Оплата + Адрес    | `payment`, `address`, `errors`, `valid`, `onPaymentChange`, `onAddressInput`, `onSubmit`          |
 | `ContactsFormView` | Шаг 2: Email + Телефон   | `email`, `phone`, `errors`, `valid`, `onEmailInput`, `onPhoneInput`, `onSubmit`                   |
+| **Прочие**         |                          |                                                                                                   |
+| `BasketView`       | Контейнер корзины        | `items`, `total`, `canCheckout`, `onCheckout`                                                     |
 | `OrderSuccessView` | Экран успеха             | `total`, `onReset`                                                                                |
 | `ModalView`        | Модальное окно + оверлей | `content`, методы `open(component)`, `close()`                                                    |
 | `HeaderView`       | Шапка + счётчик          | `counter`, `onBasketClick`                                                                        |
