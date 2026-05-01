@@ -80,6 +80,10 @@ header.onBasketClick = () => {
 basketView.onCheckout = () => {
   customerData.clear();
   modal.open(orderForm);
+  orderForm.render({
+    ...customerData.getData(),
+    valid: customerData.validateStep(1).isValid,
+  });
 };
 
 successView.onReset = () => {
@@ -99,12 +103,12 @@ orderForm.onAddressInput = (address) => {
 };
 
 orderForm.onSubmit = () => {
-  const validation = customerData.validate();
+  const validation = customerData.validateStep(1);
   if (validation.isValid) {
     modal.open(contactsForm);
     contactsForm.render({
       ...customerData.getData(),
-      valid: customerData.validate().isValid,
+      valid: customerData.validateStep(2).isValid,
     });
   } else {
     orderForm.render({
@@ -261,8 +265,8 @@ cart.on("cart:clear", () => {
 });
 
 customerData.on("customer:update", ({ data }: { data: Customer }) => {
-  orderForm.render({ ...data, valid: customerData.validate().isValid });
-  contactsForm.render({ ...data, valid: customerData.validate().isValid });
+  orderForm.render({ ...data, valid: customerData.validateStep(1).isValid });
+  contactsForm.render({ ...data, valid: customerData.validateStep(2).isValid });
 });
 
 customerData.on("customer:clear", () => {
