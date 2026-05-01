@@ -1,5 +1,6 @@
 import { Component } from "../base/Component";
 import { ensureElement } from "../../utils/utils";
+import type { IEvents } from "../base/Events";
 
 export interface BasketViewData {
   items: HTMLElement[];
@@ -12,13 +13,19 @@ export class BasketView extends Component<BasketViewData> {
   protected _total: HTMLElement;
   protected _checkoutBtn: HTMLButtonElement;
 
-  constructor(container: HTMLElement) {
+  constructor(
+    container: HTMLElement,
+    protected events: IEvents,
+  ) {
     super(container);
     this._list = ensureElement<HTMLElement>(".basket__list", this.container);
     this._total = ensureElement<HTMLElement>(".basket__price", this.container);
     this._checkoutBtn = ensureElement<HTMLButtonElement>(
       ".basket__button",
       this.container,
+    );
+    this._checkoutBtn.addEventListener("click", () =>
+      this.events.emit("basket:checkout"),
     );
   }
 
@@ -30,9 +37,6 @@ export class BasketView extends Component<BasketViewData> {
   }
   set canCheckout(value: boolean) {
     this._checkoutBtn.disabled = !value;
-  }
-  set onCheckout(callback: () => void) {
-    this._checkoutBtn.addEventListener("click", callback);
   }
 
   override render(data?: Partial<BasketViewData>): HTMLElement {

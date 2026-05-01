@@ -1,22 +1,23 @@
-import { Component } from "../base/Component";
+import { Card } from "./Card";
 import { ensureElement } from "../../utils/utils";
 import type { Product } from "../../types";
 import { CDN_URL, categoryMap } from "../../utils/constants";
+import type { IEvents } from "../base/Events";
 
 export interface PreviewCardViewData extends Product {}
 
-export class PreviewCardView extends Component<PreviewCardViewData> {
-  protected _title: HTMLElement;
+export class PreviewCardView extends Card<PreviewCardViewData> {
   protected _category: HTMLElement;
   protected _image: HTMLImageElement;
   protected _text: HTMLElement;
-  protected _price: HTMLElement;
   protected _button: HTMLButtonElement;
+  protected _inCart: boolean = false;
 
-  constructor(container: HTMLElement) {
+  constructor(
+    container: HTMLElement,
+    protected events: IEvents,
+  ) {
     super(container);
-
-    this._title = ensureElement<HTMLElement>(".card__title", this.container);
     this._category = ensureElement<HTMLElement>(
       ".card__category",
       this.container,
@@ -26,15 +27,17 @@ export class PreviewCardView extends Component<PreviewCardViewData> {
       this.container,
     );
     this._text = ensureElement<HTMLElement>(".card__text", this.container);
-    this._price = ensureElement<HTMLElement>(".card__price", this.container);
     this._button = ensureElement<HTMLButtonElement>(
       ".card__button",
       this.container,
     );
-  }
-
-  set title(value: string) {
-    this._title.textContent = value;
+    this._button.addEventListener("click", () => {
+      if (this._inCart) {
+        this.events.emit("preview:remove-from-cart", { id: this._id });
+      } else {
+        this.events.emit("preview:add-to-cart", { id: this._id });
+      }
+    });
   }
 
   set category(value: string) {
@@ -56,24 +59,12 @@ export class PreviewCardView extends Component<PreviewCardViewData> {
   }
 
   set price(value: number | null) {
-    this._price.textContent = value ? `${value} синапсов` : "Бесценно";
+    super.price = value;
     this._button.disabled = value === null;
   }
 
   set inCart(value: boolean) {
+    this._inCart = value;
     this._button.textContent = value ? "Удалить из корзины" : "В корзину";
-  }
-
-  set onAddToCart(callback: () => void) {
-    this._button.onclick = callback;
-  }
-
-  set onRemoveFromCart(callback: () => void) {
-    this._button.onclick = callback;
-  }
-
-  override render(data?: Partial<PreviewCardViewData>): HTMLElement {
-    super.render(data); // Вызывает сеттеры через Object.assign
-    return this.container;
   }
 }

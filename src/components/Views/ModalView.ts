@@ -1,13 +1,16 @@
 import { Component } from "../base/Component";
 import { ensureElement } from "../../utils/utils";
+import type { IEvents } from "../base/Events";
 
-export class ModalView extends Component<any> {
+export class ModalView extends Component<unknown> {
   protected _content: HTMLElement;
   protected _closeBtn: HTMLButtonElement;
 
-  constructor(container: HTMLElement) {
+  constructor(
+    container: HTMLElement,
+    protected events: IEvents,
+  ) {
     super(container);
-    // Контент модальных окон вставляется именно сюда
     this._content = ensureElement<HTMLElement>(
       ".modal__content",
       this.container,
@@ -27,15 +30,15 @@ export class ModalView extends Component<any> {
     this._content.replaceChildren(value);
   }
 
-  open(component: Component<any>) {
+  open(component: Component<unknown>) {
     this.content = component.render();
     this.container.classList.add("modal_active");
-    document.body.classList.add("modal_open");
+    this.events.emit("modal:open");
   }
 
   close() {
     this.container.classList.remove("modal_active");
-    document.body.classList.remove("modal_open");
+    this.events.emit("modal:close");
   }
 
   override render(): HTMLElement {

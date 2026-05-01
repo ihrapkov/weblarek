@@ -1,4 +1,10 @@
-import type { IApi, Product, ProductListResponse, Order, OrderResult } from '../../types';
+import type {
+  IApi,
+  Product,
+  ProductListResponse,
+  Order,
+  OrderResult,
+} from "../../types";
 
 export class LarekApi {
   private _api: IApi;
@@ -8,8 +14,8 @@ export class LarekApi {
   }
 
   /** Получение списка всех товаров */
-  getProducts(): Promise<Product[]> {
-    return this._api.get<ProductListResponse>('/product').then((data) => data.items);
+  getProducts(): Promise<ProductListResponse> {
+    return this._api.get<ProductListResponse>("/product");
   }
 
   /** Получение одного товара по ID */
@@ -19,6 +25,6 @@ export class LarekApi {
 
   /** Отправка заказа на сервер */
   postOrder(order: Order): Promise<OrderResult> {
-    return this._api.post<OrderResult>('/order', order);
+    return this._api.post<OrderResult>("/order", order);
   }
 }

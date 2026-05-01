@@ -1,4 +1,8 @@
-import type { Customer, CustomerValidationResult } from "../../types";
+import type {
+  Customer,
+  CustomerValidationResult,
+  CustomerErrors,
+} from "../../types";
 import { EventEmitter } from "../base/Events";
 
 export class CustomerData extends EventEmitter {
@@ -29,12 +33,12 @@ export class CustomerData extends EventEmitter {
 
   /** Полная валидация данных (используется при финальной проверке) */
   public validate(): CustomerValidationResult {
-    const errors: Partial<Record<keyof Customer, string>> = {};
+    const errors: CustomerErrors = {};
     if (!this.data.payment) {
       errors.payment = "Необходимо выбрать способ оплаты";
     }
     if (!this.data.address.trim()) {
-      errors.address = "Необходимо указать адрес"; // ✅ Исправлено под ТЗ
+      errors.address = "Необходимо указать адрес";
     }
     if (!this.data.email.trim()) {
       errors.email = "Email не может быть пустым";
@@ -46,25 +50,6 @@ export class CustomerData extends EventEmitter {
     return {
       isValid: Object.keys(errors).length === 0,
       errors,
-    };
-  }
-
-  /** Пошаговая валидация для UI (чтобы не проверять поля других шагов) */
-  public validateStep(step: 1 | 2): CustomerValidationResult {
-    const fullResult = this.validate();
-    const fieldsToCheck: (keyof Customer)[] =
-      step === 1 ? ["payment", "address"] : ["email", "phone"];
-    const stepErrors: Partial<Record<keyof Customer, string>> = {};
-
-    for (const field of fieldsToCheck) {
-      if (fullResult.errors[field]) {
-        stepErrors[field] = fullResult.errors[field];
-      }
-    }
-
-    return {
-      isValid: Object.keys(stepErrors).length === 0,
-      errors: stepErrors,
     };
   }
 }

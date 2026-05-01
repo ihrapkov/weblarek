@@ -1,22 +1,20 @@
-import { Component } from "../base/Component";
+import { Form } from "./Form";
 import { ensureElement } from "../../utils/utils";
 import type { Customer } from "../../types";
+import type { IEvents } from "../base/Events";
 
 export interface OrderFormViewData extends Partial<Customer> {
   errors?: string;
   valid?: boolean;
 }
 
-export class OrderFormView extends Component<OrderFormViewData> {
+export class OrderFormView extends Form<OrderFormViewData> {
   protected _paymentCard: HTMLButtonElement;
   protected _paymentCash: HTMLButtonElement;
   protected _address: HTMLInputElement;
-  protected _errors: HTMLElement;
-  protected _submitBtn: HTMLButtonElement;
 
-  constructor(container: HTMLElement) {
-    super(container);
-    // Точные селекторы под ваш <template id="order">
+  constructor(container: HTMLElement, events: IEvents) {
+    super(container, events);
     this._paymentCard = ensureElement<HTMLButtonElement>(
       'button[name="card"]',
       this.container,
@@ -29,11 +27,22 @@ export class OrderFormView extends Component<OrderFormViewData> {
       'input[name="address"]',
       this.container,
     );
-    this._errors = ensureElement<HTMLElement>(".form__errors", this.container);
-    this._submitBtn = ensureElement<HTMLButtonElement>(
-      'button[type="submit"]',
-      this.container,
+
+    this._paymentCard.addEventListener("click", () =>
+      this.events.emit("order:payment-change", { payment: "card" }),
     );
+    this._paymentCash.addEventListener("click", () =>
+      this.events.emit("order:payment-change", { payment: "cash" }),
+    );
+    this._address.addEventListener("input", (e) =>
+      this.events.emit("order:address-input", {
+        address: (e.target as HTMLInputElement).value,
+      }),
+    );
+    this._submitBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      this.events.emit("order:submit");
+    });
   }
 
   set payment(value: "card" | "cash" | "") {
@@ -51,42 +60,5 @@ export class OrderFormView extends Component<OrderFormViewData> {
 
   set address(value: string) {
     this._address.value = value;
-  }
-
-  set errors(value: string) {
-    this._errors.textContent = value || "";
-  }
-
-  set valid(value: boolean) {
-    this._submitBtn.disabled = !value;
-  }
-
-  set onPaymentChange(callback: (value: "card" | "cash") => void) {
-    this._paymentCard.addEventListener("click", () => {
-      this.payment = "card";
-      callback("card");
-    });
-    this._paymentCash.addEventListener("click", () => {
-      this.payment = "cash";
-      callback("cash");
-    });
-  }
-
-  set onAddressInput(callback: (value: string) => void) {
-    this._address.addEventListener("input", (e) =>
-      callback((e.target as HTMLInputElement).value),
-    );
-  }
-
-  set onSubmit(callback: () => void) {
-    this._submitBtn.addEventListener("click", (e) => {
-      e.preventDefault();
-      callback();
-    });
-  }
-
-  override render(data?: Partial<OrderFormViewData>): HTMLElement {
-    super.render(data); // Автоматически вызовет set payment, address, errors, valid
-    return this.container;
   }
 }

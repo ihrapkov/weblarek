@@ -25,9 +25,11 @@ export interface Customer {
   phone: string;
 }
 
+export type CustomerErrors = Partial<Record<keyof Customer, string>>;
+
 export interface CustomerValidationResult {
   isValid: boolean;
-  errors: Partial<Record<keyof Customer, string>>;
+  errors: CustomerErrors;
 }
 
 /** Ответ сервера со списком товаров */
