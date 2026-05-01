@@ -557,7 +557,7 @@ graph TD
     J --> K[orderForm.onPaymentChange / onAddressInput]
     K --> L[customerData.update]
     L --> M[customer:update событие]
-    M --> N[Кнопка "Далее"]
+    M --> N[Кнопка Далее]
     N --> O[orderForm.onSubmit]
     O --> P[Валидация шага 1]
     P --> Q{Валидно?}
@@ -565,7 +565,7 @@ graph TD
     Q -->|Нет| S[Показать ошибки]
     R --> T[Ввод контактов]
     T --> U[contactsForm.onEmailInput / onPhoneInput]
-    U --> V[Кнопка "Заказать"]
+    U --> V[Кнопка Заказать]
     V --> W[contactsForm.onSubmit]
     W --> X[Валидация шага 2]
     X --> Y{Валидно?}
@@ -581,6 +581,147 @@ graph TD
     AG --> AH[cart:clear событие]
     AH --> AI[Обновление UI]
 ```
+
+---
+
+## 🎛 Презентер (`src/main.ts`)
+
+Презентер — это **Composition Root** приложения. Содержит всю бизнес-логику и отвечает за связь моделей и представлений. Код презентера размещён в основном скрипте `main.ts` без выноса в отдельный класс.
+
+### 🔹 Принципы работы
+
+1. **Не генерирует события** — только обрабатывает события от моделей и представлений.
+2. **Callback Injection** — передаёт обработчики в представления через сеттеры `on*`.
+3. **Централизованная логика** — вся навигация и взаимодействие сосредоточены в одном месте.
+
+### 🔹 Обработчики событий моделей
+
+| Событие модели            | Обработчик                                   | Действия презентера                                                                                                                                                                                                                                     |
+| :------------------------ | :------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `catalog:update`          | `catalog.on('catalog:update', ...)`          | 1. Получает массив товаров через `catalog.getProducts()`<br>2. Создаёт `CatalogCardView` для каждого товара<br>3. Навешивает `onSelect = () => catalog.setSelectedProduct(product)`<br>4. Рендерит галерею через `galleryView.render({ items: [...] })` |
+| `catalog:selected-change` | `catalog.on('catalog:selected-change', ...)` | 1. Рендерит `previewCard` с данными товара<br>2. Проверяет наличие в корзине через `cart.hasItem()`<br>3. Навешивает `onAddToCart` или `onRemoveFromCart`<br>4. Открывает модалку с превью через `modal.open(previewCard)`                              |
+| `cart:add`                | `cart.on('cart:add', ...)`                   | 1. Обновляет счётчик в шапке `header.counter`<br>2. Перерисовывает корзину `updateBasketUI()`<br>3. Если товар открыт в превью — обновляет состояние кнопки                                                                                             |
+| `cart:remove`             | `cart.on('cart:remove', ...)`                | 1. Обновляет счётчик в шапке<br>2. Перерисовывает корзину<br>3. Если товар открыт в превью — меняет кнопку на "В корзину"                                                                                                                               |
+| `cart:clear`              | `cart.on('cart:clear', ...)`                 | 1. Сбрасывает счётчик в 0<br>2. Перерисовывает корзину<br>3. Сбрасывает состояние кнопки в превью                                                                                                                                                       |
+| `customer:update`         | `customerData.on('customer:update', ...)`    | Синхронизирует данные в формах `orderForm` и `contactsForm`                                                                                                                                                                                             |
+
+### 🔹 Обработчики событий представлений (Callback Injection)
+
+| Представление      | Callback           | Действия презентера                                                                                                                                           |
+| :----------------- | :----------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `HeaderView`       | `onBasketClick`    | 1. Вызывает `updateBasketUI()`<br>2. Открывает корзину `modal.open(basketView)`                                                                               |
+| `BasketView`       | `onCheckout`       | 1. Очищает данные покупателя `customerData.clear()`<br>2. Открывает форму заказа `modal.open(orderForm)`                                                      |
+| `OrderFormView`    | `onPaymentChange`  | Обновляет модель `customerData.update({ payment })` и перерисовывает форму                                                                                    |
+| `OrderFormView`    | `onAddressInput`   | Обновляет модель `customerData.update({ address })` и перерисовывает форму                                                                                    |
+| `OrderFormView`    | `onSubmit`         | 1. Валидирует шаг 1 через `customerData.validateStep(1)`<br>2. При успехе открывает форму контактов<br>3. При ошибке показывает сообщения об ошибках          |
+| `ContactsFormView` | `onEmailInput`     | Обновляет модель `customerData.update({ email })` и перерисовывает форму                                                                                      |
+| `ContactsFormView` | `onPhoneInput`     | Обновляет модель `customerData.update({ phone })` и перерисовывает форму                                                                                      |
+| `ContactsFormView` | `onSubmit`         | 1. Валидирует шаг 2 через `customerData.validateStep(2)`<br>2. При успехе отправляет заказ через `LarekApi.postOrder()`<br>3. При ошибке показывает сообщения |
+| `OrderSuccessView` | `onReset`          | 1. Закрывает модалку `modal.close()`<br>2. Очищает корзину `cart.clear()`<br>3. Очищает данные покупателя `customerData.clear()`                              |
+| `CatalogCardView`  | `onSelect`         | Вызывает `catalog.setSelectedProduct(product)`                                                                                                                |
+| `PreviewCardView`  | `onAddToCart`      | Вызывает `cart.addItem(product)`                                                                                                                              |
+| `PreviewCardView`  | `onRemoveFromCart` | Вызывает `cart.removeItem(product)`                                                                                                                           |
+| `BasketCardView`   | `onDelete`         | Вызывает `cart.removeItem(product)`                                                                                                                           |
+
+### 🔹 Инициализация приложения
+
+```typescript
+// 1. Создание моделей
+const catalog = new Catalog();
+const cart = new Cart();
+const customerData = new CustomerData();
+
+// 2. Создание представлений (с клонированием шаблонов)
+const galleryView = new GalleryView(galleryEl);
+const modal = new ModalView(modalContainer);
+const headerView = new HeaderView(headerEl);
+const previewCard = new PreviewCardView(
+  previewTemplate.content.cloneNode(true),
+);
+const basketView = new BasketView(basketTemplate.content.cloneNode(true));
+// ... и другие
+
+// 3. Подписка на события моделей
+catalog.on("catalog:update", handler);
+cart.on("cart:add", handler);
+// ...
+
+// 4. Привязка callback-ов к представлениям
+headerView.onBasketClick = handler;
+previewCard.onAddToCart = handler;
+// ...
+
+// 5. Начальная загрузка данных
+larekApi.getProducts().then((products) => {
+  catalog.setProducts(products); // Запускает событие catalog:update
+});
+```
+
+### 🔹 Логика оформления заказа
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant V as View
+    participant P as Presenter
+    participant M as Model
+    participant A as API
+
+    U->>V: Кликает Оформить
+    V->>P: onCheckout callback
+    P->>M: customerData.clear()
+    P->>V: modal.open(orderForm)
+
+    U->>V: Вводит оплату/адрес
+    V->>P: onPaymentChange/onAddressInput
+    P->>M: customerData.update(fields)
+    M-->>P: customer:update event
+    P->>V: Перерисовка формы
+
+    U->>V: Кликает Далее
+    V->>P: onSubmit (шаг 1)
+    P->>M: validateStep(1)
+    M-->>P: isValid
+    P->>V: modal.open(contactsForm)
+
+    U->>V: Вводит email/телефон
+    V->>P: onEmailInput/onPhoneInput
+    P->>M: customerData.update(fields)
+
+    U->>V: Кликает Заказать
+    V->>P: onSubmit (шаг 2)
+    P->>M: validateStep(2)
+    M-->>P: isValid
+    P->>A: postOrder({ ...customerData, total, items })
+    A-->>P: OrderResult
+    P->>V: modal.open(successView)
+
+    U->>V: Кликает Закрыть
+    V->>P: onReset
+    P->>V: modal.close()
+    P->>M: cart.clear()
+    P->>M: customerData.clear()
+    M-->>P: cart:clear event
+    P->>V: Обновление UI
+```
+
+### 🔹 Ключевые методы презентера
+
+| Метод                   | Описание                                                                                                      |
+| :---------------------- | :------------------------------------------------------------------------------------------------------------ |
+| `updateBasketUI()`      | Пересоздаёт все `BasketCardView` на основе данных из корзины, обновляет счётчик и состояние кнопки "Оформить" |
+| `header.counter = N`    | Устанавливает значение счётчика товаров в шапке                                                               |
+| `modal.open(component)` | Открывает модальное окно с переданным компонентом                                                             |
+| `modal.close()`         | Закрывает модальное окно                                                                                      |
+
+### 🔹 Зависимости
+
+Презентер использует:
+
+- **Модели:** `Catalog`, `Cart`, `CustomerData`, `LarekApi`
+- **Представления:** Все View-компоненты (GalleryView, ModalView, HeaderView, PreviewCardView, BasketView, OrderFormView, ContactsFormView, OrderSuccessView, CatalogCardView, BasketCardView)
+- **API:** `Api` для HTTP-запросов
+- **Константы:** `API_URL` для настройки бэкенда
 
 ## 💡 Ключевые архитектурные решения
 
