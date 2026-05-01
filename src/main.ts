@@ -255,9 +255,9 @@ cart.on("cart:clear", () => {
   }
 });
 
-customerData.on("customer:update", ({ data }: { data: Partial<Customer> }) => {
-  orderForm.render(data);
-  contactsForm.render(data);
+customerData.on("customer:update", ({ data }: { data: Customer }) => {
+  orderForm.render({ ...data, valid: customerData.validate().isValid });
+  contactsForm.render({ ...data, valid: customerData.validate().isValid });
 });
 
 // ==========================================
