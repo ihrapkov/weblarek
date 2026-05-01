@@ -80,7 +80,6 @@ header.onBasketClick = () => {
 basketView.onCheckout = () => {
   customerData.clear();
   modal.open(orderForm);
-  orderForm.render({ valid: customerData.validate().isValid });
 };
 
 successView.onReset = () => {
@@ -93,32 +92,35 @@ successView.onReset = () => {
 // Формы заказа
 orderForm.onPaymentChange = (payment) => {
   customerData.update({ payment });
-  orderForm.render({ valid: customerData.validate().isValid });
 };
 
 orderForm.onAddressInput = (address) => {
   customerData.update({ address });
-  orderForm.render({ valid: customerData.validate().isValid });
 };
 
 orderForm.onSubmit = () => {
   const validation = customerData.validate();
   if (validation.isValid) {
     modal.open(contactsForm);
-    contactsForm.render({ valid: customerData.validate().isValid });
+    contactsForm.render({
+      ...customerData.getData(),
+      valid: customerData.validate().isValid,
+    });
   } else {
-    orderForm.render({ errors: Object.values(validation.errors).join("; ") });
+    orderForm.render({
+      ...customerData.getData(),
+      errors: Object.values(validation.errors).join("; "),
+      valid: false,
+    });
   }
 };
 
 contactsForm.onEmailInput = (email) => {
   customerData.update({ email });
-  contactsForm.render({ valid: customerData.validate().isValid });
 };
 
 contactsForm.onPhoneInput = (phone) => {
   customerData.update({ phone });
-  contactsForm.render({ valid: customerData.validate().isValid });
 };
 
 contactsForm.onSubmit = () => {
@@ -138,12 +140,15 @@ contactsForm.onSubmit = () => {
       .catch((err) => {
         console.error("Ошибка оформления заказа:", err);
         contactsForm.render({
+          ...customerData.getData(),
           errors: "Произошла ошибка при оформлении заказа",
         });
       });
   } else {
     contactsForm.render({
+      ...customerData.getData(),
       errors: Object.values(validation.errors).join("; "),
+      valid: false,
     });
   }
 };
@@ -258,6 +263,23 @@ cart.on("cart:clear", () => {
 customerData.on("customer:update", ({ data }: { data: Customer }) => {
   orderForm.render({ ...data, valid: customerData.validate().isValid });
   contactsForm.render({ ...data, valid: customerData.validate().isValid });
+});
+
+customerData.on("customer:clear", () => {
+  orderForm.render({
+    payment: "",
+    address: "",
+    email: "",
+    phone: "",
+    valid: false,
+  });
+  contactsForm.render({
+    payment: "",
+    address: "",
+    email: "",
+    phone: "",
+    valid: false,
+  });
 });
 
 // ==========================================
