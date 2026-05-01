@@ -454,22 +454,133 @@ View-слой **не генерирует события**. Использует
 
 ---
 
-## Система событий
+## 📡 Система событий
 
 В приложении используется **гибридный подход**:
 
 - **Модели** генерируют события через `EventEmitter`.
-- **Представления** используют прямые колбэки. Это исключает "сплошную шину событий", упрощает отладку и делает View переиспользуемыми.
+- **Представления** используют прямые колбэки (Callback Injection). Это исключает "сплошную шину событий", упрощает отладку и делает View переиспользуемыми.
 
-| Имя события               | Источник       | Payload                        | Описание                         |
-| :------------------------ | :------------- | :----------------------------- | :------------------------------- |
-| `catalog:update`          | `Catalog`      | `{ products: Product[] }`      | Загружен/обновлён список товаров |
-| `catalog:selected-change` | `Catalog`      | `{ product: Product \| null }` | Изменён выбранный товар          |
-| `cart:add`                | `Cart`         | `{ product: Product }`         | Товар добавлен в корзину         |
-| `cart:remove`             | `Cart`         | `{ product: Product }`         | Товар удалён из корзины          |
-| `cart:clear`              | `Cart`         | `{ items: Product[] }`         | Корзина очищена                  |
-| `customer:update`         | `CustomerData` | `{ data: Partial<Customer> }`  | Обновлены контактные данные      |
-| `customer:clear`          | `CustomerData` | `{ data: Customer }`           | Данные покупателя сброшены       |
+### 🔹 События моделей
+
+События генерируются в моделях, наследующих `EventEmitter`. Презентер подписывается на эти события для синхронизации UI.
+
+#### Каталог товаров (`Catalog`)
+
+| Событие                   | Payload                        | Описание                                         | Источник                      |
+| :------------------------ | :----------------------------- | :----------------------------------------------- | :---------------------------- |
+| `catalog:update`          | `{ products: Product[] }`      | Загружен/обновлён список товаров в каталоге      | `setProducts(products)`       |
+| `catalog:selected-change` | `{ product: Product \| null }` | Изменён выбранный товар для детального просмотра | `setSelectedProduct(product)` |
+
+**Пример подписки:**
+
+```typescript
+catalog.on<CatalogUpdateEvent>("catalog:update", ({ products }) => {
+  // Обновить галерею товаров
+  const cards = products.map(
+    (p) => new CatalogCardView(template.cloneNode(true)),
+  );
+  galleryView.items = cards.map((c) => c.render());
+});
+```
+
+#### Корзина покупок (`Cart`)
+
+| Событие       | Payload                | Описание                  | Источник              |
+| :------------ | :--------------------- | :------------------------ | :-------------------- |
+| `cart:add`    | `{ product: Product }` | Товар добавлен в корзину  | `addItem(product)`    |
+| `cart:remove` | `{ product: Product }` | Товар удалён из корзины   | `removeItem(product)` |
+| `cart:clear`  | `{ items: Product[] }` | Корзина полностью очищена | `clear()`             |
+
+**Пример подписки:**
+
+```typescript
+cart.on<CartAddEvent>("cart:add", ({ product }) => {
+  // Обновить счётчик в шапке
+  headerView.counter = cart.getItemCount();
+  // Обновить карточку товара в превью
+  previewView.inCart = true;
+});
+```
+
+#### Данные покупателя (`CustomerData`)
+
+| Событие           | Payload              | Описание                                            | Источник         |
+| :---------------- | :------------------- | :-------------------------------------------------- | :--------------- |
+| `customer:update` | `{ data: Customer }` | Обновлены данные покупателя (оплата/адрес/контакты) | `update(fields)` |
+| `customer:clear`  | `{ data: Customer }` | Данные покупателя сброшены к пустым значениям       | `clear()`        |
+
+**Пример подписки:**
+
+```typescript
+customerData.on<CustomerUpdateEvent>("customer:update", ({ data }) => {
+  // Синхронизировать данные с формами
+  orderFormView.payment = data.payment;
+  orderFormView.address = data.address;
+});
+```
+
+### 🔹 Callback-интерфейсы представлений
+
+Представления **не генерируют события**. Вместо этого они вызывают переданные в сеттеры `on*` колбэки.
+
+| Представление      | Callback-интерфейс                                 | Когда вызывается                      |
+| :----------------- | :------------------------------------------------- | :------------------------------------ |
+| `CatalogCardView`  | `onSelect: () => void`                             | Клик по карточке товара               |
+| `PreviewCardView`  | `onAddToCart: () => void`                          | Клик "В корзину"                      |
+| `PreviewCardView`  | `onRemoveFromCart: () => void`                     | Клик "Удалить из корзины"             |
+| `BasketCardView`   | `onDelete: () => void`                             | Клик "Удалить" у товара в корзине     |
+| `BasketView`       | `onCheckout: () => void`                           | Клик "Оформить заказ"                 |
+| `OrderFormView`    | `onPaymentChange: (value: "card"\|"cash") => void` | Выбор способа оплаты                  |
+| `OrderFormView`    | `onAddressInput: (value: string) => void`          | Ввод адреса                           |
+| `OrderFormView`    | `onSubmit: () => void`                             | Отправка формы адреса                 |
+| `ContactsFormView` | `onEmailInput: (value: string) => void`            | Ввод email                            |
+| `ContactsFormView` | `onPhoneInput: (value: string) => void`            | Ввод телефона                         |
+| `ContactsFormView` | `onSubmit: () => void`                             | Отправка формы контактов              |
+| `OrderSuccessView` | `onReset: () => void`                              | Клик "Закрыть" после успешного заказа |
+| `HeaderView`       | `onBasketClick: () => void`                        | Клик по иконке корзины в шапке        |
+| `ModalView`        | (внутренние)                                       | Закрыть модалку по крестику/клику     |
+
+### 🔹 Поток событий при оформлении заказа
+
+```mermaid
+graph TD
+    A[Клик по корзине] --> B[header.onBasketClick]
+    B --> C[updateBasketUI]
+    C --> D[modal.open basketView]
+    D --> E[Клик Оформить]
+    E --> F[basketView.onCheckout]
+    F --> G[customerData.clear]
+    G --> H[customer:clear событие]
+    H --> I[modal.open orderForm]
+    I --> J[Ввод оплаты/адреса]
+    J --> K[orderForm.onPaymentChange / onAddressInput]
+    K --> L[customerData.update]
+    L --> M[customer:update событие]
+    M --> N[Кнопка "Далее"]
+    N --> O[orderForm.onSubmit]
+    O --> P[Валидация шага 1]
+    P --> Q{Валидно?}
+    Q -->|Да| R[modal.open contactsForm]
+    Q -->|Нет| S[Показать ошибки]
+    R --> T[Ввод контактов]
+    T --> U[contactsForm.onEmailInput / onPhoneInput]
+    U --> V[Кнопка "Заказать"]
+    V --> W[contactsForm.onSubmit]
+    W --> X[Валидация шага 2]
+    X --> Y{Валидно?}
+    Y -->|Да| Z[LarekApi.postOrder]
+    Y -->|Нет| S
+    Z --> AA[Успех]
+    AA --> AB[modal.open successView]
+    AB --> AC[Клик Закрыть]
+    AC --> AD[successView.onReset]
+    AD --> AE[modal.close]
+    AE --> AF[customerData.clear]
+    AF --> AG[cart.clear]
+    AG --> AH[cart:clear событие]
+    AH --> AI[Обновление UI]
+```
 
 ## 💡 Ключевые архитектурные решения
 
