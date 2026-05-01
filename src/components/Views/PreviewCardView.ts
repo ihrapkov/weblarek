@@ -1,7 +1,7 @@
 import { Component } from "../base/Component";
 import { ensureElement } from "../../utils/utils";
 import type { Product } from "../../types";
-import { CDN_URL } from "../../utils/constants";
+import { CDN_URL, categoryMap } from "../../utils/constants";
 
 export interface PreviewCardViewData extends Product {}
 
@@ -39,15 +39,9 @@ export class PreviewCardView extends Component<PreviewCardViewData> {
 
   set category(value: string) {
     this._category.textContent = value;
-    // Динамическое изменение класса категории (стандартная логика проекта)
-    const categoryClasses: Record<string, string> = {
-      "софт-скил": "soft",
-      другое: "other",
-      дополнительное: "additional",
-      кнопка: "button",
-      "хард-скил": "hard",
-    };
-    this._category.className = `card__category card__category_${categoryClasses[value] || "other"}`;
+    const categoryModifier =
+      categoryMap[value as keyof typeof categoryMap] || "card__category_other";
+    this._category.className = `card__category ${categoryModifier}`;
   }
 
   set image(value: string) {
