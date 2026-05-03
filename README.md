@@ -110,324 +110,314 @@ Presenter - презентер содержит основную логику п
 
 Все типы объявлены в файле `src/types/index.ts`.
 
-**`ApiPostMethods`** — тип, описывающий доступные HTTP-методы для POST-запросов:
+**`ApiPostMethods`** — тип HTTP-методов для POST-запросов. Допустимые значения: `"POST"`, `"PUT"`, `"DELETE"`.
 
-```typescript
-export type ApiPostMethods = "POST" | "PUT" | "DELETE";
-```
+**`IApi`** — интерфейс для отправки HTTP-запросов. Используется для инверсии зависимостей в `LarekApi`. Методы:
 
-**`IApi`** — интерфейс для класса отправки HTTP-запросов. Используется для инверсии зависимостей:
+| Метод     | Параметры                                                | Возвращает   | Описание                                |
+| :-------- | :------------------------------------------------------- | :----------- | :-------------------------------------- |
+| `get<T>`  | `uri: string`                                            | `Promise<T>` | GET-запрос к указанному эндпоинту       |
+| `post<T>` | `uri: string`, `data: object`, `method?: ApiPostMethods` | `Promise<T>` | POST/PUT/DELETE-запрос с данными в теле |
 
-```typescript
-export interface IApi {
-  get<T extends object>(uri: string): Promise<T>;
-  post<T extends object>(
-    uri: string,
-    data: object,
-    method?: ApiPostMethods,
-  ): Promise<T>;
-}
-```
+**`Product`** — сущность товара в каталоге.
 
-**`Product`** — интерфейс товара:
+| Поле          | Тип        | Описание                                        |
+| :------------ | :--------- | :---------------------------------------------- | --------------------------------------- |
+| `id`          | `string`   | Уникальный идентификатор товара                 |
+| `title`       | `string`   | Название товара                                 |
+| `image`       | `string`   | Путь к изображению товара                       |
+| `category`    | `string`   | Категория товара (для отображения и стилизации) |
+| `price`       | `number \\ | null`                                           | Цена товара. `null` означает "бесценно" |
+| `description` | `string`   | Описание товара                                 |
 
-```typescript
-export interface Product {
-  id: string;
-  title: string;
-  image: string;
-  category: string;
-  price: number | null;
-  description: string;
-}
-```
+**`Customer`** — сущность данных покупателя (контактная информация и способ оплаты).
 
-**`Customer`** — интерфейс данных покупателя:
+| Поле      | Тип        | Описание          |
+| :-------- | :--------- | :---------------- | --- | ---------------------------------------------- |
+| `payment` | `"card" \\ | "cash" \\         | ""` | Способ оплаты: картой, наличными или не выбран |
+| `address` | `string`   | Адрес доставки    |
+| `email`   | `string`   | Email для связи   |
+| `phone`   | `string`   | Телефон для связи |
 
-```typescript
-export interface Customer {
-  payment: "card" | "cash" | "";
-  address: string;
-  email: string;
-  phone: string;
-}
-```
+**`CustomerErrors`** — тип для хранения ошибок валидации полей покупателя. Ключи совпадают с полями `Customer`, значения — сообщения об ошибках или отсутствуют.
 
-**`CustomerValidationResult`** — результат валидации данных покупателя:
+**`CustomerValidationResult`** — результат валидации данных покупателя.
 
-```typescript
-export type CustomerErrors = Partial<Record<keyof Customer, string>>;
+| Поле      | Тип              | Описание                              |
+| :-------- | :--------------- | :------------------------------------ |
+| `isValid` | `boolean`        | `true`, если все поля валидны         |
+| `errors`  | `CustomerErrors` | Объект с сообщениями об ошибках полей |
 
-export interface CustomerValidationResult {
-  isValid: boolean;
-  errors: CustomerErrors;
-}
-```
+**`ProductListResponse`** — ответ сервера со списком товаров.
 
-**`ProductListResponse`** — ответ сервера со списком товаров:
+| Поле    | Тип         | Описание                 |
+| :------ | :---------- | :----------------------- |
+| `total` | `number`    | Общее количество товаров |
+| `items` | `Product[]` | Массив товаров           |
 
-```typescript
-export interface ProductListResponse {
-  total: number;
-  items: Product[];
-}
-```
+**`Order`** — данные заказа для отправки на сервер. Расширяет `Customer` дополнительными полями.
 
-**`Order`** — данные для отправки заказа на сервер. Расширяет `Customer` полями `total` и `items`:
+| Поле                        | Тип        | Описание                               |
+| :-------------------------- | :--------- | :------------------------------------- |
+| _(наследует от `Customer`)_ |            | `payment`, `address`, `email`, `phone` |
+| `total`                     | `number`   | Общая сумма заказа                     |
+| `items`                     | `string[]` | Массив ID товаров в корзине            |
 
-```typescript
-export interface Order extends Customer {
-  total: number;
-  items: string[];
-}
-```
+**`OrderResult`** — результат создания заказа на сервере.
 
-**`OrderResult`** — результат создания заказа на сервере:
-
-```typescript
-export interface OrderResult {
-  id: string;
-  total: number;
-}
-```
+| Поле    | Тип      | Описание                                   |
+| :------ | :------- | :----------------------------------------- |
+| `id`    | `string` | Уникальный идентификатор созданного заказа |
+| `total` | `number` | Итоговая сумма заказа                      |
 
 #### Модели данных
 
+Все модели наследуются от `EventEmitter` и генерируют события при изменении данных.
+
 ##### Catalog
 
-Класс для хранения и управления каталогом товаров.
+Класс для хранения и управления каталогом товаров. Генерирует события `catalog:update` при обновлении списка товаров и `catalog:selected-change` при выборе товара.
 
-```typescript
-export class Catalog {
-  private products: Product[] = [];
-  private selectedProduct: Product | null = null;
+| Поле              | Тип         | Описание                     |
+| :---------------- | :---------- | :--------------------------- | ------------------------------------------------ |
+| `products`        | `Product[]` | Массив всех товаров каталога |
+| `selectedProduct` | `Product \\ | null`                        | Текущий выбранный товар для детального просмотра |
 
-  /** Сохранение массива товаров */
-  public setProducts(products: Product[]): void {
-    this.products = [...products];
-  }
-
-  /** Получение массива товаров */
-  public getProducts(): Product[] {
-    return [...this.products];
-  }
-
-  /** Получение одного товара по ID */
-  public getProductById(id: string): Product | undefined {
-    return this.products.find((product) => product.id === id);
-  }
-
-  /** Сохранение товара для подробного отображения */
-  public setSelectedProduct(product: Product | null): void {
-    this.selectedProduct = product;
-  }
-
-  /** Получение товара для подробного отображения */
-  public getSelectedProduct(): Product | null {
-    return this.selectedProduct;
-  }
-}
-```
-
-Поля класса:
-`products: Product[]` — массив всех товаров каталога.
-`selectedProduct: Product | null` — текущий выбранный товар для подробного отображения.
-
-Методы класса:
-`setProducts(products: Product[]): void` — сохраняет массив товаров, создавая копию переданного массива.
-`getProducts(): Product[]` — возвращает копию массива всех товаров.
-`getProductById(id: string): Product | undefined` — возвращает товар с указанным ID или `undefined`, если товар не найден.
-`setSelectedProduct(product: Product | null): void` — сохраняет товар для подробного отображения или сбрасывает выбор при передаче `null`.
-`getSelectedProduct(): Product | null` — возвращает текущий выбранный товар или `null`.
+| Метод                | Параметры             | Возвращает  | Описание                                 |
+| :------------------- | :-------------------- | :---------- | :--------------------------------------- | ------------------------------------------------------------- |
+| `setProducts`        | `products: Product[]` | `void`      | Сохраняет массив товаров, создавая копию |
+| `getProducts`        | -                     | `Product[]` | Возвращает копию массива всех товаров    |
+| `getProductById`     | `id: string`          | `Product \\ | undefined`                               | Возвращает товар с указанным ID или `undefined`               |
+| `setSelectedProduct` | `product: Product \\  | null`       | `void`                                   | Сохраняет товар для детального просмотра или сбрасывает выбор |
+| `getSelectedProduct` | -                     | `Product \\ | null`                                    | Возвращает текущий выбранный товар или `null`                 |
 
 ##### Cart
 
-Класс для хранения и управления корзиной покупок.
+Класс для хранения и управления корзиной покупок. Генерирует события `cart:add`, `cart:remove`, `cart:clear` при изменении содержимого.
 
-```typescript
-export class Cart {
-  private items: Product[] = [];
+| Поле    | Тип         | Описание                              |
+| :------ | :---------- | :------------------------------------ |
+| `items` | `Product[]` | Массив товаров, добавленных в корзину |
 
-  /** Получение массива товаров в корзине */
-  public getItems(): Product[] {
-    return [...this.items];
-  }
-
-  /** Добавление товара в корзину */
-  public addItem(product: Product): void {
-    this.items.push(product);
-  }
-
-  /** Удаление товара из корзины */
-  public removeItem(product: Product): void {
-    const index = this.items.findIndex((item) => item.id === product.id);
-    if (index !== -1) {
-      this.items.splice(index, 1);
-    }
-  }
-
-  /** Очистка корзины */
-  public clear(): void {
-    this.items = [];
-  }
-
-  /** Получение стоимости всех товаров в корзине */
-  public getTotalPrice(): number {
-    return this.items.reduce((sum, item) => sum + (item.price ?? 0), 0);
-  }
-
-  /** Получение количества товаров в корзине */
-  public getItemCount(): number {
-    return this.items.length;
-  }
-
-  /** Проверка наличия товара в корзине по ID */
-  public hasItem(id: string): boolean {
-    return this.items.some((item) => item.id === id);
-  }
-}
-```
-
-Поля класса:
-`items: Product[]` — массив товаров, добавленных в корзину.
-
-Методы класса:
-`getItems(): Product[]` — возвращает копию массива товаров в корзине.
-`addItem(product: Product): void` — добавляет товар в корзину.
-`removeItem(product: Product): void` — удаляет товар из корзины по совпадению ID.
-`clear(): void` — очищает корзину.
-`getTotalPrice(): number` — возвращает суммарную стоимость всех товаров в корзине (товары с `null` ценой считаются как 0).
-`getItemCount(): number` — возвращает количество товаров в корзине.
-`hasItem(id: string): boolean` — проверяет наличие товара с указанным ID в корзине.
+| Метод           | Параметры          | Возвращает  | Описание                                                               |
+| :-------------- | :----------------- | :---------- | :--------------------------------------------------------------------- |
+| `getItems`      | -                  | `Product[]` | Возвращает копию массива товаров в корзине                             |
+| `addItem`       | `product: Product` | `void`      | Добавляет товар в корзину                                              |
+| `removeItem`    | `product: Product` | `void`      | Удаляет товар из корзины по совпадению ID                              |
+| `clear`         | -                  | `void`      | Очищает корзину                                                        |
+| `getTotalPrice` | -                  | `number`    | Возвращает суммарную стоимость (товары с `null` ценой считаются как 0) |
+| `getItemCount`  | -                  | `number`    | Возвращает количество товаров в корзине                                |
+| `hasItem`       | `id: string`       | `boolean`   | Проверяет наличие товара с указанным ID                                |
 
 ##### CustomerData
 
-Класс для хранения и валидации данных покупателя.
+Класс для хранения и валидации данных покупателя. Генерирует события `customer:update` при изменении данных и `customer:clear` при очистке.
 
-```typescript
-export class CustomerData {
-  private data: Customer = {
-    payment: "",
-    address: "",
-    email: "",
-    phone: "",
-  };
+| Поле   | Тип        | Описание                                                           |
+| :----- | :--------- | :----------------------------------------------------------------- |
+| `data` | `Customer` | Объект с данными покупателя (способ оплаты, адрес, email, телефон) |
 
-  /** Сохранение данных в модели */
-  public update(fields: Partial<Customer>): void {
-    this.data = { ...this.data, ...fields };
-  }
-
-  /** Получение всех данных покупателя */
-  public getData(): Customer {
-    return { ...this.data };
-  }
-
-  /** Очистка данных покупателя */
-  public clear(): void {
-    this.data = { payment: "", address: "", email: "", phone: "" };
-  }
-
-  /** Валидация данных */
-  public validate(): CustomerValidationResult {
-    const errors: CustomerErrors = {};
-
-    if (!this.data.payment) {
-      errors.payment = "Необходимо выбрать способ оплаты";
-    }
-    if (!this.data.address.trim()) {
-      errors.address = "Адрес не может быть пустым";
-    }
-    if (!this.data.email.trim()) {
-      errors.email = "Email не может быть пустым";
-    }
-    if (!this.data.phone.trim()) {
-      errors.phone = "Телефон не может быть пустым";
-    }
-
-    return {
-      isValid: Object.keys(errors).length === 0,
-      errors,
-    };
-  }
-}
-```
-
-Поля класса:
-`data: Customer` — объект с данными покупателя (способ оплаты, адрес, email, телефон).
-
-Методы класса:
-`update(fields: Partial<Customer>): void` — обновляет переданные поля данных покупателя, не перезаписывая остальные.
-`getData(): Customer` — возвращает копию объекта с данными покупателя.
-`clear(): void` — сбрасывает все данные покупателя к пустым значениям.
-`validate(): CustomerValidationResult` — проверяет все поля на заполненность и возвращает объект `{ isValid: boolean, errors: CustomerErrors }`.
+| Метод      | Параметры                   | Возвращает                 | Описание                                              |
+| :--------- | :-------------------------- | :------------------------- | :---------------------------------------------------- |
+| `update`   | `fields: Partial<Customer>` | `void`                     | Обновляет переданные поля, не перезаписывая остальные |
+| `getData`  | -                           | `Customer`                 | Возвращает копию объекта с данными покупателя         |
+| `clear`    | -                           | `void`                     | Сбрасывает все данные покупателя к пустым значениям   |
+| `validate` | -                           | `CustomerValidationResult` | Проверяет все поля на заполненность                   |
 
 #### Слой коммуникации
 
 Класс для взаимодействия с сервером API. Использует композицию — принимает в конструктор объект, реализующий интерфейс `IApi`, и делегирует ему выполнение HTTP-запросов.
 
-```typescript
-export class LarekApi {
-  private _api: IApi;
+##### LarekApi
 
-  /**
-   * @param api — объект, реализующий интерфейс IApi
-   */
-  constructor(api: IApi) {
-    this._api = api;
-  }
+| Поле   | Тип    | Описание                                                                |
+| :----- | :----- | :---------------------------------------------------------------------- |
+| `_api` | `IApi` | Объект, реализующий интерфейс `IApi`, через который выполняются запросы |
 
-  /** Получение списка всех товаров */
-  getProducts(): Promise<ProductListResponse> {
-    return this._api.get<ProductListResponse>("/product");
-  }
-
-  /** Получение одного товара по ID */
-  getProductById(id: string): Promise<Product> {
-    return this._api.get<Product>(`/product/${id}`);
-  }
-
-  /** Отправка заказа на сервер */
-  postOrder(order: Order): Promise<OrderResult> {
-    return this._api.post<OrderResult>("/order", order);
-  }
-}
-```
-
-Поля класса:
-`_api: IApi` — объект, реализующий интерфейс `IApi`, через который выполняются запросы.
-
-Методы класса:
-`getProducts(): Promise<ProductListResponse>` — выполняет GET-запрос к ендпоинту `/product` и возвращает полный ответ сервера с массивом товаров.
-`getProductById(id: string): Promise<Product>` — выполняет GET-запрос к ендпоинту `/product/{id}` и возвращает объект одного товара.
-`postOrder(order: Order): Promise<OrderResult>` — выполняет POST-запрос к ендпоинту `/order`, передавая данные заказа, и возвращает результат создания заказа.
+| Метод            | Параметры      | Возвращает                     | Описание                                               |
+| :--------------- | :------------- | :----------------------------- | :----------------------------------------------------- |
+| `getProducts`    | -              | `Promise<ProductListResponse>` | GET-запрос к `/product`, возвращает массив товаров     |
+| `getProductById` | `id: string`   | `Promise<Product>`             | GET-запрос к `/product/{id}`, возвращает объект товара |
+| `postOrder`      | `order: Order` | `Promise<OrderResult>`         | POST-запрос к `/order`, создаёт заказ на сервере       |
 
 ## Слой представления
 
 View-слой **генерирует события через IEvents**. Используется паттерн **Event-Driven**: Презентер передаёт экземпляр `EventEmitter` в конструктор View, и View эмитит именованные события при взаимодействии пользователя. Это обеспечивает полное разделение ответственности и переиспользуемость компонентов.
 
-**Базовые классы:**
+Все View-компоненты наследуются от базового класса `Component<T>` и принимают в конструктор DOM-элемент для работы и опционально `EventEmitter` для генерации событий.
 
-- `Card<T>` — базовый класс для карточек товаров с общими полями `id`, `title`, `price`
-- `Form<T>` — базовый класс для форм с общими полями `errors`, `valid` и логикой отправки
+### Базовые классы
 
-| Класс              | Назначение                  | Ключевые свойства / события                                                                                         |
-| :----------------- | :-------------------------- | :------------------------------------------------------------------------------------------------------------------ |
-| **Базовые**        |                             |                                                                                                                     |
-| `Card<T>`          | Карточка товара (наследник) | `id`, `title`, `price`, `formatPrice()`                                                                             |
-| `Form<T>`          | Форма (наследник)           | `errors`, `valid`                                                                                                   |
-| **Карточки**       |                             |                                                                                                                     |
-| `CatalogCardView`  | Карточка в каталоге         | `id`, `title`, `category`, `image`, `price` → `card:select`                                                         |
-| `PreviewCardView`  | Детальный просмотр          | `title`, `category`, `image`, `description`, `price`, `inCart` → `preview:add-to-cart` / `preview:remove-from-cart` |
-| `BasketCardView`   | Позиция в корзине           | `index`, `title`, `price`, `id` → `basket-card:delete`                                                              |
-| **Формы**          |                             |                                                                                                                     |
-| `OrderFormView`    | Шаг 1: Оплата + Адрес       | `payment`, `address`, `errors`, `valid` → `order:payment-change`, `order:address-input`, `order:submit`             |
-| `ContactsFormView` | Шаг 2: Email + Телефон      | `email`, `phone`, `errors`, `valid` → `contacts:email-input`, `contacts:phone-input`, `contacts:submit`             |
-| **Прочие**         |                             |                                                                                                                     |
-| `BasketView`       | Контейнер корзины           | `items`, `total`, `canCheckout` → `basket:checkout`                                                                 |
-| `OrderSuccessView` | Экран успеха                | `total` → `success:reset`                                                                                           |
-| `ModalView`        | Модальное окно + оверлей    | `content`, методы `open(component)`, `close()` → `modal:open`, `modal:close`                                        |
-| `HeaderView`       | Шапка + счётчик             | `counter` → `header:basket-click`                                                                                   |
+##### Card<T>
+
+Базовый класс для карточек товаров с общими полями и методами.
+
+| Поле     | Тип           | Описание                                |
+| :------- | :------------ | :-------------------------------------- |
+| `_title` | `HTMLElement` | Элемент для отображения названия товара |
+| `_price` | `HTMLElement` | Элемент для отображения цены            |
+| `_id`    | `string`      | ID товара                               |
+
+| Метод/Сеттер  | Параметры         | Возвращает | Описание                                                 |
+| :------------ | :---------------- | :--------- | :------------------------------------------------------- | ------------------------------------------------------------------- |
+| `id`          | `value: string`   | `void`     | Устанавливает ID товара и записывает в `data-id` атрибут |
+| `title`       | `value: string`   | `void`     | Устанавливает название товара                            |
+| `price`       | `value: number \\ | null`      | `void`                                                   | Устанавливает цену с форматированием                                |
+| `formatPrice` | `value: number \\ | null`      | `string`                                                 | Форматирует цену в строку (например, "100 синапсов" или "Бесценно") |
+
+##### Form<T>
+
+Базовый класс для форм с общими полями и логикой отправки.
+
+| Поле         | Тип                 | Описание                                 |
+| :----------- | :------------------ | :--------------------------------------- |
+| `_errors`    | `HTMLElement`       | Элемент для отображения ошибок валидации |
+| `_submitBtn` | `HTMLButtonElement` | Кнопка отправки формы                    |
+
+| Метод/Сеттер | Параметры        | Возвращает | Описание                               |
+| :----------- | :--------------- | :--------- | :------------------------------------- |
+| `errors`     | `value: string`  | `void`     | Устанавливает текст ошибки             |
+| `valid`      | `value: boolean` | `void`     | Блокирует/разблокирует кнопку отправки |
+
+### Карточки товаров
+
+##### CatalogCardView
+
+Карточка товара в каталоге. Наследуется от `Card<CatalogCardViewData>`. Генерирует событие `card:select` с `{ id: string }` при клике.
+
+| Поле        | Тип                | Описание                          |
+| :---------- | :----------------- | :-------------------------------- |
+| `_category` | `HTMLElement`      | Элемент для отображения категории |
+| `_image`    | `HTMLImageElement` | Элемент изображения товара        |
+
+| Метод/Сеттер | Параметры       | Возвращает | Описание                                              |
+| :----------- | :-------------- | :--------- | :---------------------------------------------------- |
+| `category`   | `value: string` | `void`     | Устанавливает категорию с соответствующим CSS-классом |
+| `image`      | `value: string` | `void`     | Устанавливает изображение (с обработкой CDN URL)      |
+
+##### PreviewCardView
+
+Карточка детального просмотра товара. Наследуется от `Card<PreviewCardViewData>`. Генерирует события `preview:add-to-cart` / `preview:remove-from-cart` с `{ id: string }` при клике на кнопку.
+
+| Поле        | Тип                 | Описание                              |
+| :---------- | :------------------ | :------------------------------------ |
+| `_category` | `HTMLElement`       | Элемент для отображения категории     |
+| `_image`    | `HTMLImageElement`  | Элемент изображения товара            |
+| `_text`     | `HTMLElement`       | Элемент для описания товара           |
+| `_button`   | `HTMLButtonElement` | Кнопка добавления/удаления из корзины |
+| `_inCart`   | `boolean`           | Флаг наличия товара в корзине         |
+
+| Метод/Сеттер  | Параметры         | Возвращает | Описание                                                            |
+| :------------ | :---------------- | :--------- | :------------------------------------------------------------------ | ------------------------------------------------ |
+| `category`    | `value: string`   | `void`     | Устанавливает категорию с CSS-классом                               |
+| `image`       | `value: string`   | `void`     | Устанавливает изображение (с обработкой CDN URL)                    |
+| `description` | `value: string`   | `void`     | Устанавливает описание товара                                       |
+| `price`       | `value: number \\ | null`      | `void`                                                              | Устанавливает цену, блокирует кнопку если `null` |
+| `inCart`      | `value: boolean`  | `void`     | Устанавливает состояние кнопки ("В корзину" / "Удалить из корзины") |
+
+##### BasketCardView
+
+Карточка товара в корзине. Наследуется от `Card<BasketCardViewData>`. Генерирует событие `basket-card:delete` с `{ id: string }` при клике на кнопку удаления.
+
+| Поле         | Тип                 | Описание                   |
+| :----------- | :------------------ | :------------------------- |
+| `_index`     | `HTMLElement`       | Элемент для номера позиции |
+| `_deleteBtn` | `HTMLButtonElement` | Кнопка удаления товара     |
+
+| Метод/Сеттер  | Параметры         | Возвращает | Описание                              |
+| :------------ | :---------------- | :--------- | :------------------------------------ | ------------------------------------- |
+| `index`       | `value: number`   | `void`     | Устанавливает номер позиции в корзине |
+| `formatPrice` | `value: number \\ | null`      | `string`                              | Форматирует цену без слова "Бесценно" |
+
+### Формы
+
+##### OrderFormView
+
+Форма шага 1: оплата и адрес. Наследуется от `Form<OrderFormViewData>`. Генерирует события `order:payment-change`, `order:address-input`, `order:submit`.
+
+| Поле           | Тип                 | Описание                       |
+| :------------- | :------------------ | :----------------------------- |
+| `_paymentCard` | `HTMLButtonElement` | Кнопка выбора оплаты картой    |
+| `_paymentCash` | `HTMLButtonElement` | Кнопка выбора оплаты наличными |
+| `_address`     | `HTMLInputElement`  | Поле ввода адреса              |
+
+| Метод/Сеттер | Параметры       | Возвращает | Описание                      |
+| :----------- | :-------------- | :--------- | :---------------------------- | ------ | ------------------------------------------------------------ |
+| `payment`    | `"card" \\      | "cash" \\  | ""`                           | `void` | Устанавливает выбранный способ оплаты (активирует CSS-класс) |
+| `address`    | `value: string` | `void`     | Устанавливает значение адреса |
+
+##### ContactsFormView
+
+Форма шага 2: email и телефон. Наследуется от `Form<ContactsFormViewData>`. Генерирует события `contacts:email-input`, `contacts:phone-input`, `contacts:submit`.
+
+| Поле     | Тип                | Описание            |
+| :------- | :----------------- | :------------------ |
+| `_email` | `HTMLInputElement` | Поле ввода email    |
+| `_phone` | `HTMLInputElement` | Поле ввода телефона |
+
+| Метод/Сеттер | Параметры       | Возвращает | Описание                        |
+| :----------- | :-------------- | :--------- | :------------------------------ |
+| `email`      | `value: string` | `void`     | Устанавливает значение email    |
+| `phone`      | `value: string` | `void`     | Устанавливает значение телефона |
+
+### Прочие компоненты
+
+##### BasketView
+
+Контейнер корзины покупок. Наследуется от `Component<BasketViewData>`. Генерирует событие `basket:checkout` при клике на кнопку оформления.
+
+| Поле           | Тип                 | Описание                     |
+| :------------- | :------------------ | :--------------------------- |
+| `_list`        | `HTMLElement`       | Контейнер для списка товаров |
+| `_total`       | `HTMLElement`       | Элемент для итоговой суммы   |
+| `_checkoutBtn` | `HTMLButtonElement` | Кнопка оформления заказа     |
+
+| Метод/Сеттер  | Параметры              | Возвращает | Описание                                    |
+| :------------ | :--------------------- | :--------- | :------------------------------------------ |
+| `items`       | `value: HTMLElement[]` | `void`     | Устанавливает список DOM-элементов карточек |
+| `total`       | `value: number`        | `void`     | Устанавливает итоговую сумму                |
+| `canCheckout` | `value: boolean`       | `void`     | Включает/выключает кнопку оформления        |
+
+##### OrderSuccessView
+
+Экран успешного оформления заказа. Наследуется от `Component<OrderSuccessViewData>`. Генерирует событие `success:reset` при клике на кнопку закрытия.
+
+| Поле        | Тип                 | Описание                                |
+| :---------- | :------------------ | :-------------------------------------- |
+| `_total`    | `HTMLElement`       | Элемент для отображения списанной суммы |
+| `_closeBtn` | `HTMLButtonElement` | Кнопка закрытия окна                    |
+
+| Метод/Сеттер | Параметры       | Возвращает | Описание                                |
+| :----------- | :-------------- | :--------- | :-------------------------------------- |
+| `total`      | `value: number` | `void`     | Устанавливает текст со списанной суммой |
+
+##### ModalView
+
+Модальное окно с оверлеем. Наследуется от `Component<unknown>`. Генерирует события `modal:open` / `modal:close`.
+
+| Поле        | Тип                 | Описание                               |
+| :---------- | :------------------ | :------------------------------------- |
+| `_content`  | `HTMLElement`       | Контейнер для контента модального окна |
+| `_closeBtn` | `HTMLButtonElement` | Кнопка закрытия (крестик)              |
+
+| Метод     | Параметры                       | Возвращает | Описание                                  |
+| :-------- | :------------------------------ | :--------- | :---------------------------------------- |
+| `open`    | `component: Component<unknown>` | `void`     | Открывает модалку с содержимым компонента |
+| `close`   | -                               | `void`     | Закрывает модальное окно                  |
+| `content` | `value: HTMLElement`            | `void`     | Устанавливает контент модального окна     |
+
+##### HeaderView
+
+Шапка сайта с счётчиком корзины. Наследуется от `Component<unknown>`. Генерирует событие `header:basket-click` при клике на иконку корзины.
+
+| Поле       | Тип           | Описание                 |
+| :--------- | :------------ | :----------------------- |
+| `_counter` | `HTMLElement` | Элемент счётчика товаров |
+| `_basket`  | `HTMLElement` | Иконка корзины для клика |
+
+| Метод/Сеттер | Параметры       | Возвращает | Описание                        |
+| :----------- | :-------------- | :--------- | :------------------------------ |
+| `counter`    | `value: number` | `void`     | Устанавливает значение счётчика |
 
 ---
 
