@@ -1,6 +1,5 @@
 import { Component } from "../base/Component";
 import { ensureElement } from "../../utils/utils";
-import type { IEvents } from "../base/Events";
 
 export interface BasketViewData {
   items: HTMLElement[];
@@ -15,7 +14,7 @@ export class BasketView extends Component<BasketViewData> {
 
   constructor(
     container: HTMLElement,
-    protected events: IEvents,
+    protected handlers: { onCheckout: () => void },
   ) {
     super(container);
     this._list = ensureElement<HTMLElement>(".basket__list", this.container);
@@ -25,7 +24,7 @@ export class BasketView extends Component<BasketViewData> {
       this.container,
     );
     this._checkoutBtn.addEventListener("click", () =>
-      this.events.emit("basket:checkout"),
+      this.handlers.onCheckout(),
     );
   }
 
@@ -37,10 +36,5 @@ export class BasketView extends Component<BasketViewData> {
   }
   set canCheckout(value: boolean) {
     this._checkoutBtn.disabled = !value;
-  }
-
-  override render(data?: Partial<BasketViewData>): HTMLElement {
-    super.render(data);
-    return this.container;
   }
 }

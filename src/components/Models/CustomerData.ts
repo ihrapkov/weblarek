@@ -26,9 +26,8 @@ export class CustomerData extends EventEmitter {
 
   /** Очистка данных покупателя */
   public clear(): void {
-    const data = { ...this.data };
     this.data = { payment: "", address: "", email: "", phone: "" };
-    this.emit("customer:clear", { data });
+    this.emit("customer:clear", { data: this.data });
   }
 
   /** Полная валидация данных (используется при финальной проверке) */

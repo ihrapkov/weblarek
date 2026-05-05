@@ -2,20 +2,22 @@ import { Card } from "./Card";
 import { ensureElement } from "../../utils/utils";
 import type { Product } from "../../types";
 import { CDN_URL, categoryMap } from "../../utils/constants";
-import type { IEvents } from "../base/Events";
 
-export interface PreviewCardViewData extends Product {}
+export interface PreviewCardViewData extends Product {
+  inCart?: boolean;
+}
 
 export class PreviewCardView extends Card<PreviewCardViewData> {
   protected _category: HTMLElement;
   protected _image: HTMLImageElement;
   protected _text: HTMLElement;
   protected _button: HTMLButtonElement;
-  protected _inCart: boolean = false;
 
   constructor(
     container: HTMLElement,
-    protected events: IEvents,
+    protected handlers: {
+      onAction: () => void;
+    },
   ) {
     super(container);
     this._category = ensureElement<HTMLElement>(
@@ -32,11 +34,7 @@ export class PreviewCardView extends Card<PreviewCardViewData> {
       this.container,
     );
     this._button.addEventListener("click", () => {
-      if (this._inCart) {
-        this.events.emit("preview:remove-from-cart", { id: this._id });
-      } else {
-        this.events.emit("preview:add-to-cart", { id: this._id });
-      }
+      this.handlers.onAction();
     });
   }
 
@@ -64,7 +62,6 @@ export class PreviewCardView extends Card<PreviewCardViewData> {
   }
 
   set inCart(value: boolean) {
-    this._inCart = value;
     this._button.textContent = value ? "Удалить из корзины" : "В корзину";
   }
 }

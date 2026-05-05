@@ -12,7 +12,7 @@ export class ContactsFormView extends Form<ContactsFormViewData> {
   protected _email: HTMLInputElement;
   protected _phone: HTMLInputElement;
 
-  constructor(container: HTMLElement, events: IEvents) {
+  constructor(container: HTMLFormElement, events: IEvents) {
     super(container, events);
     this._email = ensureElement<HTMLInputElement>(
       'input[name="email"]',
@@ -33,7 +33,7 @@ export class ContactsFormView extends Form<ContactsFormViewData> {
         phone: (e.target as HTMLInputElement).value,
       }),
     );
-    this._submitBtn.addEventListener("click", (e) => {
+    this.container.addEventListener("submit", (e) => {
       e.preventDefault();
       this.events.emit("contacts:submit");
     });

@@ -13,7 +13,7 @@ export class OrderFormView extends Form<OrderFormViewData> {
   protected _paymentCash: HTMLButtonElement;
   protected _address: HTMLInputElement;
 
-  constructor(container: HTMLElement, events: IEvents) {
+  constructor(container: HTMLFormElement, events: IEvents) {
     super(container, events);
     this._paymentCard = ensureElement<HTMLButtonElement>(
       'button[name="card"]',
@@ -39,7 +39,7 @@ export class OrderFormView extends Form<OrderFormViewData> {
         address: (e.target as HTMLInputElement).value,
       }),
     );
-    this._submitBtn.addEventListener("click", (e) => {
+    this.container.addEventListener("submit", (e) => {
       e.preventDefault();
       this.events.emit("order:submit");
     });

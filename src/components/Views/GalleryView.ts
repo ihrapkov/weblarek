@@ -16,11 +16,4 @@ export class GalleryView extends Component<GalleryViewData> {
     // this.container гарантированно существует после вызова super()
     this.container.replaceChildren(...items);
   }
-
-  override render(data?: Partial<GalleryViewData>): HTMLElement {
-    if (data?.items) {
-      this.items = data.items;
-    }
-    return this.container;
-  }
 }

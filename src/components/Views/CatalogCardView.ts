@@ -2,7 +2,6 @@ import { Card } from "./Card";
 import { ensureElement } from "../../utils/utils";
 import type { Product } from "../../types";
 import { CDN_URL, categoryMap } from "../../utils/constants";
-import type { IEvents } from "../base/Events";
 
 export interface CatalogCardViewData extends Product {}
 
@@ -12,7 +11,7 @@ export class CatalogCardView extends Card<CatalogCardViewData> {
 
   constructor(
     container: HTMLElement,
-    protected events: IEvents,
+    protected handlers: { onSelect: () => void },
   ) {
     super(container);
     this._category = ensureElement<HTMLElement>(
@@ -23,9 +22,7 @@ export class CatalogCardView extends Card<CatalogCardViewData> {
       ".card__image",
       this.container,
     );
-    this.container.addEventListener("click", () =>
-      this.events.emit("card:select", { id: this._id }),
-    );
+    this.container.addEventListener("click", () => this.handlers.onSelect());
   }
 
   set category(value: string) {

@@ -36,13 +36,15 @@ const modalContainer = document.getElementById(
   "modal-container",
 ) as HTMLElement;
 if (!modalContainer) throw new Error("Контейнер модальных окон не найден");
-const modal = new ModalView(modalContainer, events);
-
-events.on("modal:open", () => document.body.classList.add("modal_open"));
-events.on("modal:close", () => document.body.classList.remove("modal_open"));
+const modal = new ModalView(modalContainer, {
+  onOpen: () => document.body.classList.add("modal_open"),
+  onClose: () => document.body.classList.remove("modal_open"),
+});
 
 const headerEl = document.querySelector(".header") as HTMLElement;
-const header = new HeaderView(headerEl, events);
+const header = new HeaderView(headerEl, {
+  onBasketClick: () => events.emit("header:basket-click"),
+});
 
 // Клонируем шаблоны
 const previewTemplate = document.getElementById(
@@ -60,23 +62,40 @@ const successTemplate = document.getElementById(
 // Создаем представления
 const previewCard = new PreviewCardView(
   previewTemplate.content.firstElementChild?.cloneNode(true) as HTMLElement,
-  events,
+  {
+    onAction: () => {
+      const product = catalog.getSelectedProduct();
+      if (product) {
+        if (cart.hasItem(product.id)) {
+          cart.removeItem(product);
+        } else {
+          cart.addItem(product);
+        }
+      }
+    },
+  },
 );
 const basketView = new BasketView(
   basketTemplate.content.firstElementChild?.cloneNode(true) as HTMLElement,
-  events,
+  {
+    onCheckout: () => events.emit("basket:checkout"),
+  },
 );
 const orderForm = new OrderFormView(
-  orderTemplate.content.firstElementChild?.cloneNode(true) as HTMLElement,
+  orderTemplate.content.firstElementChild?.cloneNode(true) as HTMLFormElement,
   events,
 );
 const contactsForm = new ContactsFormView(
-  contactsTemplate.content.firstElementChild?.cloneNode(true) as HTMLElement,
+  contactsTemplate.content.firstElementChild?.cloneNode(
+    true,
+  ) as HTMLFormElement,
   events,
 );
 const successView = new OrderSuccessView(
   successTemplate.content.firstElementChild?.cloneNode(true) as HTMLElement,
-  events,
+  {
+    onClose: () => events.emit("success:reset"),
+  },
 );
 
 // ==========================================
@@ -90,8 +109,12 @@ events.on("header:basket-click", () => {
 events.on("basket:checkout", () => {
   modal.open(orderForm);
   const { errors } = customerData.validate();
+  const orderErrors = [errors.payment, errors.address]
+    .filter(Boolean)
+    .join("; ");
   orderForm.render({
     ...customerData.getData(),
+    errors: orderErrors,
     valid: !errors.payment && !errors.address,
   });
 });
@@ -114,8 +137,12 @@ events.on("order:address-input", ({ address }: { address: string }) => {
 events.on("order:submit", () => {
   modal.open(contactsForm);
   const { errors } = customerData.validate();
+  const contactsErrors = [errors.email, errors.phone]
+    .filter(Boolean)
+    .join("; ");
   contactsForm.render({
     ...customerData.getData(),
+    errors: contactsErrors,
     valid: !errors.email && !errors.phone,
   });
 });
@@ -141,7 +168,6 @@ events.on("contacts:submit", () => {
       modal.open(successView);
       cart.clear();
       customerData.clear();
-      header.counter = 0;
     })
     .catch((err) => {
       console.error("Ошибка оформления заказа:", err);
@@ -156,20 +182,6 @@ events.on("card:select", ({ id }: { id: string }) => {
   const product = catalog.getProducts().find((p) => p.id === id);
   if (product) {
     catalog.setSelectedProduct(product);
-  }
-});
-
-events.on("preview:add-to-cart", ({ id }: { id: string }) => {
-  const product = catalog.getProducts().find((p) => p.id === id);
-  if (product) {
-    cart.addItem(product);
-  }
-});
-
-events.on("preview:remove-from-cart", ({ id }: { id: string }) => {
-  const product = cart.getItems().find((p) => p.id === id);
-  if (product) {
-    cart.removeItem(product);
   }
 });
 
@@ -191,7 +203,9 @@ catalog.on("catalog:update", () => {
     const cardEl = template.content.firstElementChild?.cloneNode(
       true,
     ) as HTMLElement;
-    const cardView = new CatalogCardView(cardEl, events);
+    const cardView = new CatalogCardView(cardEl, {
+      onSelect: () => events.emit("card:select", { id: product.id }),
+    });
     cardView.render(product);
     return cardEl;
   });
@@ -202,25 +216,25 @@ catalog.on(
   "catalog:selected-change",
   ({ product }: { product: Product | null }) => {
     if (product) {
-      previewCard.render(product);
-      previewCard.inCart = cart.hasItem(product.id);
+      previewCard.render({ ...product, inCart: cart.hasItem(product.id) });
       modal.open(previewCard);
     }
   },
 );
 
 const updateBasketUI = () => {
-  const basketItems = cart.getItems().map((item, index) => {
+  const basketItems = cart.getItems().map((item) => {
     const template = document.getElementById(
       "card-basket",
     ) as HTMLTemplateElement;
     const cardEl = template.content.firstElementChild?.cloneNode(
       true,
     ) as HTMLElement;
-    const basketCard = new BasketCardView(cardEl, events);
+    const basketCard = new BasketCardView(cardEl, {
+      onDelete: () => events.emit("basket-card:delete", { id: item.id }),
+    });
     basketCard.render({
       ...item,
-      index: index + 1,
       price: item.price ?? undefined,
     });
     return cardEl;
@@ -252,7 +266,7 @@ cart.on("cart:remove", ({ product }: { product: Product }) => {
 });
 
 cart.on("cart:clear", () => {
-  header.counter = 0;
+  header.counter = cart.getItemCount();
   updateBasketUI();
   const selectedProduct = catalog.getSelectedProduct();
   if (selectedProduct) {
@@ -262,30 +276,48 @@ cart.on("cart:clear", () => {
 
 customerData.on("customer:update", ({ data }: { data: Customer }) => {
   const { errors } = customerData.validate();
+
+  const orderErrors = [errors.payment, errors.address]
+    .filter(Boolean)
+    .join("; ");
+
+  const contactsErrors = [errors.email, errors.phone]
+    .filter(Boolean)
+    .join("; ");
+
   orderForm.render({
     ...data,
+    errors: orderErrors,
     valid: !errors.payment && !errors.address,
   });
   contactsForm.render({
     ...data,
+    errors: contactsErrors,
     valid: !errors.email && !errors.phone,
   });
 });
 
 customerData.on("customer:clear", () => {
+  const { errors } = customerData.validate();
+  const data = customerData.getData();
+
+  const orderErrors = [errors.payment, errors.address]
+    .filter(Boolean)
+    .join("; ");
+
+  const contactsErrors = [errors.email, errors.phone]
+    .filter(Boolean)
+    .join("; ");
+
   orderForm.render({
-    payment: "",
-    address: "",
-    email: "",
-    phone: "",
-    valid: false,
+    ...data,
+    errors: orderErrors,
+    valid: !errors.payment && !errors.address,
   });
   contactsForm.render({
-    payment: "",
-    address: "",
-    email: "",
-    phone: "",
-    valid: false,
+    ...data,
+    errors: contactsErrors,
+    valid: !errors.email && !errors.phone,
   });
 });
 

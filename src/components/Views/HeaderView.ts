@@ -1,5 +1,4 @@
 import { Component } from "../base/Component";
-import type { IEvents } from "../base/Events";
 
 export class HeaderView extends Component<unknown> {
   protected _counter: HTMLElement;
@@ -7,16 +6,14 @@ export class HeaderView extends Component<unknown> {
 
   constructor(
     container: HTMLElement,
-    protected events: IEvents,
+    protected handlers: { onBasketClick: () => void },
   ) {
     super(container);
     this._counter = container.querySelector(
       ".header__basket-counter",
     ) as HTMLElement;
     this._basket = container.querySelector(".header__basket") as HTMLElement;
-    this._basket.addEventListener("click", () =>
-      this.events.emit("header:basket-click"),
-    );
+    this._basket.addEventListener("click", () => this.handlers.onBasketClick());
   }
 
   set counter(value: number) {

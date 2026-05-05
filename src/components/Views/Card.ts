@@ -10,17 +10,11 @@ export interface CardData {
 export class Card<T extends CardData> extends Component<T> {
   protected _title: HTMLElement;
   protected _price: HTMLElement;
-  protected _id: string = "";
 
   constructor(container: HTMLElement) {
     super(container);
     this._title = ensureElement<HTMLElement>(".card__title", this.container);
     this._price = ensureElement<HTMLElement>(".card__price", this.container);
-  }
-
-  set id(value: string) {
-    this._id = value;
-    this.container.dataset.id = value;
   }
 
   set title(value: string) {

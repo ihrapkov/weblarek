@@ -1,6 +1,5 @@
 import { Component } from "../base/Component";
 import { ensureElement } from "../../utils/utils";
-import type { IEvents } from "../base/Events";
 
 export interface OrderSuccessViewData {
   total: number;
@@ -12,7 +11,7 @@ export class OrderSuccessView extends Component<OrderSuccessViewData> {
 
   constructor(
     container: HTMLElement,
-    protected events: IEvents,
+    protected handlers: { onClose: () => void },
   ) {
     super(container);
     this._total = ensureElement<HTMLElement>(
@@ -23,17 +22,10 @@ export class OrderSuccessView extends Component<OrderSuccessViewData> {
       ".order-success__close",
       this.container,
     );
-    this._closeBtn.addEventListener("click", () =>
-      this.events.emit("success:reset"),
-    );
+    this._closeBtn.addEventListener("click", () => this.handlers.onClose());
   }
 
   set total(value: number) {
     this._total.textContent = `Списано ${value} синапсов`;
-  }
-
-  override render(data?: Partial<OrderSuccessViewData>): HTMLElement {
-    super.render(data);
-    return this.container;
   }
 }
