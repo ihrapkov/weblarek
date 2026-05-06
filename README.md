@@ -193,7 +193,7 @@ Presenter - презентер содержит основную логику п
 
 ##### Cart
 
-Класс для хранения и управления корзиной покупок. Генерирует события `cart:add`, `cart:remove`, `cart:clear` при изменении содержимого.
+Класс для хранения и управления корзиной покупок. Генерирует события `cart:add`, `cart:remove`, `cart:clear` при соответствующих изменениях, а также общее событие `cart:change` при любом изменении содержимого.
 
 | Поле    | Тип         | Описание                              |
 | :------ | :---------- | :------------------------------------ |
@@ -211,7 +211,7 @@ Presenter - презентер содержит основную логику п
 
 ##### CustomerData
 
-Класс для хранения и валидации данных покупателя. Генерирует события `customer:update` при изменении данных и `customer:clear` при очистке.
+Класс для хранения и валидации данных покупателя. Генерирует событие `customer:change` при изменении данных и при очистке.
 
 | Поле   | Тип        | Описание                                                           |
 | :----- | :--------- | :----------------------------------------------------------------- |
@@ -393,18 +393,19 @@ View-слой **генерирует события через IEvents**. Исп
 
 ##### ModalView
 
-Модальное окно с оверлеем. Наследуется от `Component<unknown>`. Генерирует события `modal:open` / `modal:close`.
+Модальное окно с оверлеем. Наследуется от `Component<unknown>`. Принимает в конструктор `IEvents` для генерации событий. Генерирует события `modal:open` / `modal:close`.
 
 | Поле        | Тип                 | Описание                               |
 | :---------- | :------------------ | :------------------------------------- |
 | `_content`  | `HTMLElement`       | Контейнер для контента модального окна |
 | `_closeBtn` | `HTMLButtonElement` | Кнопка закрытия (крестик)              |
+| `events`    | `IEvents`           | Брокер событий для генерации событий   |
 
-| Метод     | Параметры                       | Возвращает | Описание                                  |
-| :-------- | :------------------------------ | :--------- | :---------------------------------------- |
-| `open`    | `component: Component<unknown>` | `void`     | Открывает модалку с содержимым компонента |
-| `close`   | -                               | `void`     | Закрывает модальное окно                  |
-| `content` | `value: HTMLElement`            | `void`     | Устанавливает контент модального окна     |
+| Метод     | Параметры                       | Возвращает | Описание                                                       |
+| :-------- | :------------------------------ | :--------- | :------------------------------------------------------------- |
+| `open`    | `component: Component<unknown>` | `void`     | Открывает модалку с содержимым компонента, эмитит `modal:open` |
+| `close`   | -                               | `void`     | Закрывает модальное окно, эмитит `modal:close`                 |
+| `content` | `value: HTMLElement`            | `void`     | Устанавливает контент модального окна                          |
 
 ##### HeaderView
 
@@ -419,6 +420,15 @@ View-слой **генерирует события через IEvents**. Исп
 | :----------- | :-------------- | :--------- | :------------------------------ |
 | `counter`    | `value: number` | `void`     | Устанавливает значение счётчика |
 
+##### PageView
+
+Страница приложения. Наследуется от `Component<unknown>`. Управляет блокировкой скролла при открытии модального окна. Контейнером является элемент `body`.
+
+| Метод    | Параметры | Возвращает | Описание                                            |
+| :------- | :-------- | :--------- | :-------------------------------------------------- |
+| `lock`   | -         | `void`     | Блокирует скролл страницы (добавляет `modal_open`)  |
+| `unlock` | -         | `void`     | Разблокирует скролл страницы (удаляет `modal_open`) |
+
 ---
 
 ## 🎛 Презентер (`src/main.ts`)
@@ -427,31 +437,31 @@ View-слой **генерирует события через IEvents**. Исп
 
 ### 🔹 Маршрутизация пользовательских действий
 
-| Действие                  | Событие от View            | Обработчик в презентере                      | Результат                                           |
-| :------------------------ | :------------------------- | :------------------------------------------- | :-------------------------------------------------- |
-| Клик по корзине           | `header:basket-click`      | `events.on("header:basket-click", ...)`      | `updateBasketUI()` → `modal.open(basketView)`       |
-| Клик "Оформить"           | `basket:checkout`          | `events.on("basket:checkout", ...)`          | открытие `orderForm` (данные не сбрасываются)       |
-| Выбор оплаты              | `order:payment-change`     | `events.on("order:payment-change", ...)`     | `customerData.update({ payment })`                  |
-| Ввод адреса               | `order:address-input`      | `events.on("order:address-input", ...)`      | `customerData.update({ address })`                  |
-| Submit формы адреса       | `order:submit`             | `events.on("order:submit", ...)`             | открытие `contactsForm`                             |
-| Ввод email                | `contacts:email-input`     | `events.on("contacts:email-input", ...)`     | `customerData.update({ email })`                    |
-| Ввод телефона             | `contacts:phone-input`     | `events.on("contacts:phone-input", ...)`     | `customerData.update({ phone })`                    |
-| Submit формы контактов    | `contacts:submit`          | `events.on("contacts:submit", ...)`          | `LarekApi.postOrder()` → при успехе очистка моделей |
-| Клик "Удалить" в корзине  | `basket-card:delete`       | `events.on("basket-card:delete", ...)`       | `cart.removeItem(product)`                          |
-| Клик "В корзину"          | `preview:add-to-cart`      | `events.on("preview:add-to-cart", ...)`      | `cart.addItem(product)`                             |
-| Клик "Удалить из корзины" | `preview:remove-from-cart` | `events.on("preview:remove-from-cart", ...)` | `cart.removeItem(product)`                          |
-| Клик по карточке товара   | `card:select`              | `events.on("card:select", ...)`              | `catalog.setSelectedProduct(product)`               |
-| Клик "Закрыть" успеха     | `success:reset`            | `events.on("success:reset", ...)`            | `modal.close()` (без очистки данных)                |
+| Действие                 | Событие от View        | Обработчик в презентере                  | Результат                                             |
+| :----------------------- | :--------------------- | :--------------------------------------- | :---------------------------------------------------- |
+| Клик по корзине          | `header:basket-click`  | `events.on("header:basket-click", ...)`  | `updateBasketUI()` → `modal.open(basketView)`         |
+| Клик "Оформить"          | `basket:checkout`      | `events.on("basket:checkout", ...)`      | открытие `orderForm` (данные не сбрасываются)         |
+| Выбор оплаты             | `order:payment-change` | `events.on("order:payment-change", ...)` | `customerData.update({ payment })`                    |
+| Ввод адреса              | `order:address-input`  | `events.on("order:address-input", ...)`  | `customerData.update({ address })`                    |
+| Submit формы адреса      | `order:submit`         | `events.on("order:submit", ...)`         | открытие `contactsForm`                               |
+| Ввод email               | `contacts:email-input` | `events.on("contacts:email-input", ...)` | `customerData.update({ email })`                      |
+| Ввод телефона            | `contacts:phone-input` | `events.on("contacts:phone-input", ...)` | `customerData.update({ phone })`                      |
+| Submit формы контактов   | `contacts:submit`      | `events.on("contacts:submit", ...)`      | `LarekApi.postOrder()` → при успехе очистка моделей   |
+| Клик "Удалить" в корзине | `basket-card:delete`   | `events.on("basket-card:delete", ...)`   | `cart.removeItem(product)`                            |
+| Клик по кнопке в превью  | `preview:toggle`       | `events.on("preview:toggle", ...)`       | Добавление/удаление из корзины, закрытие при удалении |
+| Клик по карточке товара  | `card:select`          | `events.on("card:select", ...)`          | `catalog.setSelectedProduct(product)`                 |
+| Клик "Закрыть" успеха    | `success:reset`        | `events.on("success:reset", ...)`        | `modal.close()` (без очистки данных)                  |
+| Открытие модалки         | `modal:open`           | `events.on("modal:open", ...)`           | `page.lock()` — блокировка скролла                    |
+| Закрытие модалки         | `modal:close`          | `events.on("modal:close", ...)`          | `page.unlock()` — разблокировка скролла               |
 
 ### 🔹 Подписка на события моделей
 
-| Событие                                   | Действие Презентера                                                                        |
-| :---------------------------------------- | :----------------------------------------------------------------------------------------- |
-| `catalog:update`                          | Генерирует массив `CatalogCardView`, рендерит `galleryView`                                |
-| `catalog:selected-change`                 | Рендерит `PreviewCardView`, проверяет наличие в корзине, открывает модалку                 |
-| `cart:add` / `cart:remove` / `cart:clear` | Обновляет счётчик, вызывает `updateBasketUI()`, синхронизирует состояние `PreviewCardView` |
-| `customer:update`                         | Синхронизирует данные в `orderForm` и `contactsForm`, обновляет `valid`                    |
-| `customer:clear`                          | Сбрасывает значения в формах на пустые, блокирует кнопку отправки                          |
+| Событие                   | Действие Презентера                                                                        |
+| :------------------------ | :----------------------------------------------------------------------------------------- |
+| `catalog:update`          | Генерирует массив `CatalogCardView`, рендерит `galleryView`                                |
+| `catalog:selected-change` | Рендерит `PreviewCardView`, проверяет наличие в корзине, открывает модалку                 |
+| `cart:change`             | Обновляет счётчик, вызывает `updateBasketUI()`, синхронизирует состояние `PreviewCardView` |
+| `customer:change`         | Синхронизирует данные в `orderForm` и `contactsForm`, обновляет `valid`                    |
 
 ---
 
@@ -493,34 +503,34 @@ catalog.on<CatalogUpdateEvent>("catalog:update", ({ products }) => {
 
 #### Корзина покупок (`Cart`)
 
-| Событие       | Payload                | Описание                  | Источник              |
-| :------------ | :--------------------- | :------------------------ | :-------------------- |
-| `cart:add`    | `{ product: Product }` | Товар добавлен в корзину  | `addItem(product)`    |
-| `cart:remove` | `{ product: Product }` | Товар удалён из корзины   | `removeItem(product)` |
-| `cart:clear`  | `{ items: Product[] }` | Корзина полностью очищена | `clear()`             |
+| Событие       | Payload                | Описание                                                    | Источник                           |
+| :------------ | :--------------------- | :---------------------------------------------------------- | :--------------------------------- |
+| `cart:add`    | `{ product: Product }` | Товар добавлен в корзину                                    | `addItem(product)`                 |
+| `cart:remove` | `{ product: Product }` | Товар удалён из корзины                                     | `removeItem(product)`              |
+| `cart:clear`  | `{ items: Product[] }` | Корзина полностью очищена                                   | `clear()`                          |
+| `cart:change` | `{ items: Product[] }` | Содержимое корзины изменено (добавление, удаление, очистка) | `addItem`, `removeItem`, `clear()` |
 
 **Пример подписки:**
 
 ```typescript
-cart.on<CartAddEvent>("cart:add", ({ product }) => {
+cart.on<CartChangeEvent>("cart:change", ({ items }) => {
   // Обновить счётчик в шапке
   headerView.counter = cart.getItemCount();
-  // Обновить карточку товара в превью
-  previewView.inCart = true;
+  // Перерисовать корзину
+  updateBasketUI();
 });
 ```
 
 #### Данные покупателя (`CustomerData`)
 
-| Событие           | Payload              | Описание                                            | Источник         |
-| :---------------- | :------------------- | :-------------------------------------------------- | :--------------- |
-| `customer:update` | `{ data: Customer }` | Обновлены данные покупателя (оплата/адрес/контакты) | `update(fields)` |
-| `customer:clear`  | `{ data: Customer }` | Данные покупателя сброшены к пустым значениям       | `clear()`        |
+| Событие           | Payload              | Описание                                                   | Источник                    |
+| :---------------- | :------------------- | :--------------------------------------------------------- | :-------------------------- |
+| `customer:change` | `{ data: Customer }` | Данные покупателя изменены или сброшены к пустым значениям | `update(fields)`, `clear()` |
 
 **Пример подписки:**
 
 ```typescript
-customerData.on<CustomerUpdateEvent>("customer:update", ({ data }) => {
+customerData.on<CustomerChangeEvent>("customer:change", ({ data }) => {
   // Синхронизировать данные с формами
   orderFormView.payment = data.payment;
   orderFormView.address = data.address;
@@ -531,21 +541,21 @@ customerData.on<CustomerUpdateEvent>("customer:update", ({ data }) => {
 
 Представления **генерируют события** через `EventEmitter`, переданный в конструктор. События имеют именованный формат `namespace:event-name`.
 
-| Представление      | Событие                                            | Payload                         | Когда генерируется                    |
-| :----------------- | :------------------------------------------------- | :------------------------------ | :------------------------------------ |
-| `HeaderView`       | `header:basket-click`                              | -                               | Клик по иконке корзины в шапке        |
-| `CatalogCardView`  | `card:select`                                      | `{ id: string }`                | Клик по карточке товара               |
-| `PreviewCardView`  | `preview:add-to-cart` / `preview:remove-from-cart` | `{ id: string }`                | Клик кнопки "В корзину" / "Удалить"   |
-| `BasketCardView`   | `basket-card:delete`                               | `{ id: string }`                | Клик "Удалить" у товара в корзине     |
-| `BasketView`       | `basket:checkout`                                  | -                               | Клик "Оформить заказ"                 |
-| `OrderFormView`    | `order:payment-change`                             | `{ payment: "card" \| "cash" }` | Выбор способа оплаты                  |
-| `OrderFormView`    | `order:address-input`                              | `{ address: string }`           | Ввод адреса                           |
-| `OrderFormView`    | `order:submit`                                     | -                               | Отправка формы адреса                 |
-| `ContactsFormView` | `contacts:email-input`                             | `{ email: string }`             | Ввод email                            |
-| `ContactsFormView` | `contacts:phone-input`                             | `{ phone: string }`             | Ввод телефона                         |
-| `ContactsFormView` | `contacts:submit`                                  | -                               | Отправка формы контактов              |
-| `OrderSuccessView` | `success:reset`                                    | -                               | Клик "Закрыть" после успешного заказа |
-| `ModalView`        | `modal:open` / `modal:close`                       | -                               | Открытие / закрытие модального окна   |
+| Представление      | Событие                      | Payload                         | Когда генерируется                             |
+| :----------------- | :--------------------------- | :------------------------------ | :--------------------------------------------- |
+| `HeaderView`       | `header:basket-click`        | -                               | Клик по иконке корзины в шапке                 |
+| `CatalogCardView`  | `card:select`                | `{ id: string }`                | Клик по карточке товара                        |
+| `PreviewCardView`  | `preview:toggle`             | -                               | Клик кнопки "В корзину" / "Удалить из корзины" |
+| `BasketCardView`   | `basket-card:delete`         | `{ id: string }`                | Клик "Удалить" у товара в корзине              |
+| `BasketView`       | `basket:checkout`            | -                               | Клик "Оформить заказ"                          |
+| `OrderFormView`    | `order:payment-change`       | `{ payment: "card" \| "cash" }` | Выбор способа оплаты                           |
+| `OrderFormView`    | `order:address-input`        | `{ address: string }`           | Ввод адреса                                    |
+| `OrderFormView`    | `order:submit`               | -                               | Отправка формы адреса                          |
+| `ContactsFormView` | `contacts:email-input`       | `{ email: string }`             | Ввод email                                     |
+| `ContactsFormView` | `contacts:phone-input`       | `{ phone: string }`             | Ввод телефона                                  |
+| `ContactsFormView` | `contacts:submit`            | -                               | Отправка формы контактов                       |
+| `OrderSuccessView` | `success:reset`              | -                               | Клик "Закрыть" после успешного заказа          |
+| `ModalView`        | `modal:open` / `modal:close` | -                               | Открытие / закрытие модального окна            |
 
 ### 🔹 Поток событий при оформлении заказа
 
@@ -603,28 +613,25 @@ graph TD
 | :------------------------ | :------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `catalog:update`          | `catalog.on('catalog:update', ...)`          | 1. Получает массив товаров через `catalog.getProducts()`<br>2. Создаёт `CatalogCardView` для каждого товара<br>3. Навешивает `onSelect = () => catalog.setSelectedProduct(product)`<br>4. Рендерит галерею через `galleryView.render({ items: [...] })` |
 | `catalog:selected-change` | `catalog.on('catalog:selected-change', ...)` | 1. Рендерит `previewCard` с данными товара<br>2. Проверяет наличие в корзине через `cart.hasItem()`<br>3. Навешивает `onAddToCart` или `onRemoveFromCart`<br>4. Открывает модалку с превью через `modal.open(previewCard)`                              |
-| `cart:add`                | `cart.on('cart:add', ...)`                   | 1. Обновляет счётчик в шапке `header.counter`<br>2. Перерисовывает корзину `updateBasketUI()`<br>3. Если товар открыт в превью — обновляет состояние кнопки                                                                                             |
-| `cart:remove`             | `cart.on('cart:remove', ...)`                | 1. Обновляет счётчик в шапке<br>2. Перерисовывает корзину<br>3. Если товар открыт в превью — меняет кнопку на "В корзину"                                                                                                                               |
-| `cart:clear`              | `cart.on('cart:clear', ...)`                 | 1. Сбрасывает счётчик в 0<br>2. Перерисовывает корзину<br>3. Сбрасывает состояние кнопки в превью                                                                                                                                                       |
-| `customer:update`         | `customerData.on('customer:update', ...)`    | Синхронизирует данные в формах `orderForm` и `contactsForm`                                                                                                                                                                                             |
+| `cart:change`             | `cart.on('cart:change', ...)`                | 1. Обновляет счётчик в шапке `header.counter`<br>2. Перерисовывает корзину `updateBasketUI()`<br>3. Синхронизирует состояние кнопки в превью                                                                                                            |
+| `customer:change`         | `customerData.on('customer:change', ...)`    | Синхронизирует данные в `orderForm` и `contactsForm`, обновляет `valid`                                                                                                                                                                                 |
 
 ### 🔹 Обработчики событий представлений
 
-| Представление      | Событие                    | Действия презентера                                                                                                                                                      |
-| :----------------- | :------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `HeaderView`       | `header:basket-click`      | 1. Вызывает `updateBasketUI()`<br>2. Открывает корзину `modal.open(basketView)`                                                                                          |
-| `BasketView`       | `basket:checkout`          | 1. Открывает форму заказа `modal.open(orderForm)` (данные не сбрасываются)                                                                                               |
-| `OrderFormView`    | `order:payment-change`     | Обновляет модель `customerData.update({ payment })` → автоматически обновляется форма через `customer:update`                                                            |
-| `OrderFormView`    | `order:address-input`      | Обновляет модель `customerData.update({ address })` → автоматически обновляется форма через `customer:update`                                                            |
-| `OrderFormView`    | `order:submit`             | Открывает форму контактов `modal.open(contactsForm)`                                                                                                                     |
-| `ContactsFormView` | `contacts:email-input`     | Обновляет модель `customerData.update({ email })` → автоматически обновляется форма через `customer:update`                                                              |
-| `ContactsFormView` | `contacts:phone-input`     | Обновляет модель `customerData.update({ phone })` → автоматически обновляется форма через `customer:update`                                                              |
-| `ContactsFormView` | `contacts:submit`          | 1. Отправляет заказ через `LarekApi.postOrder()`<br>2. При успехе: `modal.open(successView)`, `cart.clear()`, `customerData.clear()`<br>3. При ошибке: показывает ошибку |
-| `OrderSuccessView` | `success:reset`            | 1. Закрывает модалку `modal.close()` (без очистки данных)                                                                                                                |
-| `CatalogCardView`  | `card:select`              | Вызывает `catalog.setSelectedProduct(product)` по ID                                                                                                                     |
-| `PreviewCardView`  | `preview:add-to-cart`      | Вызывает `cart.addItem(product)` по ID                                                                                                                                   |
-| `PreviewCardView`  | `preview:remove-from-cart` | Вызывает `cart.removeItem(product)` по ID                                                                                                                                |
-| `BasketCardView`   | `basket-card:delete`       | Вызывает `cart.removeItem(product)` по ID                                                                                                                                |
+| Представление      | Событие                | Действия презентера                                                                                                                                                      |
+| :----------------- | :--------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `HeaderView`       | `header:basket-click`  | 1. Вызывает `updateBasketUI()`<br>2. Открывает корзину `modal.open(basketView)`                                                                                          |
+| `BasketView`       | `basket:checkout`      | 1. Открывает форму заказа `modal.open(orderForm)` (данные не сбрасываются)                                                                                               |
+| `OrderFormView`    | `order:payment-change` | Обновляет модель `customerData.update({ payment })` → автоматически обновляется форма через `customer:update`                                                            |
+| `OrderFormView`    | `order:address-input`  | Обновляет модель `customerData.update({ address })` → автоматически обновляется форма через `customer:update`                                                            |
+| `OrderFormView`    | `order:submit`         | Открывает форму контактов `modal.open(contactsForm)`                                                                                                                     |
+| `ContactsFormView` | `contacts:email-input` | Обновляет модель `customerData.update({ email })` → автоматически обновляется форма через `customer:update`                                                              |
+| `ContactsFormView` | `contacts:phone-input` | Обновляет модель `customerData.update({ phone })` → автоматически обновляется форма через `customer:update`                                                              |
+| `ContactsFormView` | `contacts:submit`      | 1. Отправляет заказ через `LarekApi.postOrder()`<br>2. При успехе: `modal.open(successView)`, `cart.clear()`, `customerData.clear()`<br>3. При ошибке: показывает ошибку |
+| `OrderSuccessView` | `success:reset`        | 1. Закрывает модалку `modal.close()` (без очистки данных)                                                                                                                |
+| `CatalogCardView`  | `card:select`          | Вызывает `catalog.setSelectedProduct(product)` по ID                                                                                                                     |
+| `PreviewCardView`  | `preview:toggle`       | Если товар в корзине — вызывает `cart.removeItem()` и закрывает модалку, иначе — `cart.addItem()`                                                                        |
+| `BasketCardView`   | `basket-card:delete`   | Вызывает `cart.removeItem(product)` по ID                                                                                                                                |
 
 ### 🔹 Инициализация приложения
 
@@ -638,6 +645,7 @@ const events = new EventEmitter();
 // 2. Создание представлений (с передачей events в конструктор)
 const galleryView = new GalleryView(galleryEl);
 const modal = new ModalView(modalContainer, events);
+const page = new PageView(document.body);
 const header = new HeaderView(headerEl, events);
 const previewCard = new PreviewCardView(
   previewTemplate.content.cloneNode(true),
@@ -649,14 +657,17 @@ const basketView = new BasketView(
 );
 // ... и другие
 
-// 3. Подписка на события моделей
-catalog.on("catalog:update", handler);
-cart.on("cart:add", handler);
-// ...
-
-// 4. Подписка на события представлений
+// 3. Подписка на события представлений
+events.on("modal:open", () => page.lock());
+events.on("modal:close", () => page.unlock());
 events.on("header:basket-click", handler);
 events.on("card:select", handler);
+// ...
+
+// 4. Подписка на события моделей
+catalog.on("catalog:update", handler);
+cart.on("cart:change", handler);
+customerData.on("customer:change", handler);
 // ...
 
 // 5. Начальная загрузка данных
@@ -721,13 +732,15 @@ sequenceDiagram
 | `header.counter = N`    | Устанавливает значение счётчика товаров в шапке                                                               |
 | `modal.open(component)` | Открывает модальное окно с переданным компонентом, эмитит `modal:open`                                        |
 | `modal.close()`         | Закрывает модальное окно, эмитит `modal:close`                                                                |
+| `page.lock()`           | Блокирует скролл страницы при открытии модального окна                                                        |
+| `page.unlock()`         | Разблокирует скролл страницы при закрытии модального окна                                                     |
 
 ### 🔹 Зависимости
 
 Презентер использует:
 
 - **Модели:** `Catalog`, `Cart`, `CustomerData`, `LarekApi`
-- **Представления:** Все View-компоненты (GalleryView, ModalView, HeaderView, PreviewCardView, BasketView, OrderFormView, ContactsFormView, OrderSuccessView, CatalogCardView, BasketCardView)
+- **Представления:** Все View-компоненты (GalleryView, ModalView, PageView, HeaderView, PreviewCardView, BasketView, OrderFormView, ContactsFormView, OrderSuccessView, CatalogCardView, BasketCardView)
 - **API:** `Api` для HTTP-запросов
 - **Константы:** `API_URL` для настройки бэкенда
 
