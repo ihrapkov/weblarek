@@ -74,6 +74,10 @@ export interface CartClearEvent {
   items: Product[];
 }
 
+export interface CartChangeEvent {
+  items: Product[];
+}
+
 // События CustomerData
 export interface CustomerUpdateEvent {
   data: Customer;

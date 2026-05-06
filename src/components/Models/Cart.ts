@@ -1,5 +1,11 @@
-import type { Product, CartAddEvent, CartRemoveEvent, CartClearEvent } from '../../types';
-import { EventEmitter } from '../base/Events';
+import type {
+  Product,
+  CartAddEvent,
+  CartRemoveEvent,
+  CartClearEvent,
+  CartChangeEvent,
+} from "../../types";
+import { EventEmitter } from "../base/Events";
 
 export class Cart extends EventEmitter {
   private items: Product[] = [];
@@ -12,7 +18,8 @@ export class Cart extends EventEmitter {
   /** Добавление товара в корзину */
   public addItem(product: Product): void {
     this.items.push(product);
-    this.emit<CartAddEvent>('cart:add', { product });
+    this.emit<CartAddEvent>("cart:add", { product });
+    this.emit<CartChangeEvent>("cart:change", { items: [...this.items] });
   }
 
   /** Удаление товара из корзины */
@@ -20,7 +27,8 @@ export class Cart extends EventEmitter {
     const index = this.items.findIndex((item) => item.id === product.id);
     if (index !== -1) {
       this.items.splice(index, 1);
-      this.emit<CartRemoveEvent>('cart:remove', { product });
+      this.emit<CartRemoveEvent>("cart:remove", { product });
+      this.emit<CartChangeEvent>("cart:change", { items: [...this.items] });
     }
   }
 
@@ -28,7 +36,8 @@ export class Cart extends EventEmitter {
   public clear(): void {
     const items = [...this.items];
     this.items = [];
-    this.emit<CartClearEvent>('cart:clear', { items });
+    this.emit<CartClearEvent>("cart:clear", { items });
+    this.emit<CartChangeEvent>("cart:change", { items: [...this.items] });
   }
 
   /** Получение стоимости всех товаров в корзине */

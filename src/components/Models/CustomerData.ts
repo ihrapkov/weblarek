@@ -16,7 +16,7 @@ export class CustomerData extends EventEmitter {
   /** Сохранение данных в модели */
   public update(fields: Partial<Customer>): void {
     this.data = { ...this.data, ...fields };
-    this.emit("customer:update", { data: this.data });
+    this.emit("customer:change", { data: this.data });
   }
 
   /** Получение всех данных покупателя */
@@ -27,7 +27,7 @@ export class CustomerData extends EventEmitter {
   /** Очистка данных покупателя */
   public clear(): void {
     this.data = { payment: "", address: "", email: "", phone: "" };
-    this.emit("customer:clear", { data: this.data });
+    this.emit("customer:change", { data: this.data });
   }
 
   /** Полная валидация данных (используется при финальной проверке) */

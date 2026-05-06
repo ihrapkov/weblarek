@@ -3,6 +3,7 @@ export * from "./GalleryView";
 export * from "./ModalView";
 export * from "./BasketView";
 export * from "./OrderSuccessView";
+export * from "./PageView";
 
 export * from "./Card";
 export * from "./CatalogCardView";

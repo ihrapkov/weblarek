@@ -1,4 +1,5 @@
 import { Component } from "../base/Component";
+import { IEvents } from "../base/Events";
 import { ensureElement } from "../../utils/utils";
 
 export class ModalView extends Component<unknown> {
@@ -7,7 +8,7 @@ export class ModalView extends Component<unknown> {
 
   constructor(
     container: HTMLElement,
-    protected handlers: { onOpen: () => void; onClose: () => void },
+    protected events: IEvents,
   ) {
     super(container);
     this._content = ensureElement<HTMLElement>(
@@ -32,11 +33,11 @@ export class ModalView extends Component<unknown> {
   open(component: Component<unknown>) {
     this.content = component.render();
     this.container.classList.add("modal_active");
-    this.handlers.onOpen();
+    this.events.emit("modal:open");
   }
 
   close() {
     this.container.classList.remove("modal_active");
-    this.handlers.onClose();
+    this.events.emit("modal:close");
   }
 }

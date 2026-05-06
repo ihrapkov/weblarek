@@ -1,4 +1,4 @@
-import "./scss/styles.scss";
+﻿import "./scss/styles.scss";
 import { Catalog, Cart, CustomerData, LarekApi } from "./components/Models";
 import { Api } from "./components/base/Api";
 import { EventEmitter } from "./components/base/Events";
@@ -14,6 +14,7 @@ import {
   OrderSuccessView,
   ModalView,
   HeaderView,
+  PageView,
 } from "./components/Views";
 import type { Product, Customer } from "./types";
 
@@ -36,10 +37,12 @@ const modalContainer = document.getElementById(
   "modal-container",
 ) as HTMLElement;
 if (!modalContainer) throw new Error("Контейнер модальных окон не найден");
-const modal = new ModalView(modalContainer, {
-  onOpen: () => document.body.classList.add("modal_open"),
-  onClose: () => document.body.classList.remove("modal_open"),
-});
+const modal = new ModalView(modalContainer, events);
+
+const page = new PageView(document.body);
+
+events.on("modal:open", () => page.lock());
+events.on("modal:close", () => page.unlock());
 
 const headerEl = document.querySelector(".header") as HTMLElement;
 const header = new HeaderView(headerEl, {
@@ -63,16 +66,7 @@ const successTemplate = document.getElementById(
 const previewCard = new PreviewCardView(
   previewTemplate.content.firstElementChild?.cloneNode(true) as HTMLElement,
   {
-    onAction: () => {
-      const product = catalog.getSelectedProduct();
-      if (product) {
-        if (cart.hasItem(product.id)) {
-          cart.removeItem(product);
-        } else {
-          cart.addItem(product);
-        }
-      }
-    },
+    onAction: () => events.emit("preview:toggle"),
   },
 );
 const basketView = new BasketView(
@@ -156,7 +150,6 @@ events.on("contacts:phone-input", ({ phone }: { phone: string }) => {
 });
 
 events.on("contacts:submit", () => {
-  const larekApi = new LarekApi(new Api(API_URL));
   larekApi
     .postOrder({
       ...customerData.getData(),
@@ -189,6 +182,18 @@ events.on("basket-card:delete", ({ id }: { id: string }) => {
   const product = cart.getItems().find((p) => p.id === id);
   if (product) {
     cart.removeItem(product);
+  }
+});
+
+events.on("preview:toggle", () => {
+  const product = catalog.getSelectedProduct();
+  if (product) {
+    if (cart.hasItem(product.id)) {
+      cart.removeItem(product);
+      modal.close();
+    } else {
+      cart.addItem(product);
+    }
   }
 });
 
@@ -247,59 +252,17 @@ const updateBasketUI = () => {
   });
 };
 
-cart.on("cart:add", ({ product }: { product: Product }) => {
-  header.counter = cart.getItemCount();
-  updateBasketUI();
-  const selectedProduct = catalog.getSelectedProduct();
-  if (selectedProduct && selectedProduct.id === product.id) {
-    previewCard.inCart = true;
-  }
-});
-
-cart.on("cart:remove", ({ product }: { product: Product }) => {
-  header.counter = cart.getItemCount();
-  updateBasketUI();
-  const selectedProduct = catalog.getSelectedProduct();
-  if (selectedProduct && selectedProduct.id === product.id) {
-    previewCard.inCart = false;
-  }
-});
-
-cart.on("cart:clear", () => {
+cart.on("cart:change", () => {
   header.counter = cart.getItemCount();
   updateBasketUI();
   const selectedProduct = catalog.getSelectedProduct();
   if (selectedProduct) {
-    previewCard.inCart = false;
+    previewCard.inCart = cart.hasItem(selectedProduct.id);
   }
 });
 
-customerData.on("customer:update", ({ data }: { data: Customer }) => {
+customerData.on("customer:change", ({ data }: { data: Customer }) => {
   const { errors } = customerData.validate();
-
-  const orderErrors = [errors.payment, errors.address]
-    .filter(Boolean)
-    .join("; ");
-
-  const contactsErrors = [errors.email, errors.phone]
-    .filter(Boolean)
-    .join("; ");
-
-  orderForm.render({
-    ...data,
-    errors: orderErrors,
-    valid: !errors.payment && !errors.address,
-  });
-  contactsForm.render({
-    ...data,
-    errors: contactsErrors,
-    valid: !errors.email && !errors.phone,
-  });
-});
-
-customerData.on("customer:clear", () => {
-  const { errors } = customerData.validate();
-  const data = customerData.getData();
 
   const orderErrors = [errors.payment, errors.address]
     .filter(Boolean)
